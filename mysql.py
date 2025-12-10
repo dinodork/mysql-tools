@@ -13,6 +13,23 @@ DEFAULT_DATABASE = "test"
 SOCKET = "/tmp/mysql-8.0.sock"
 
 
+def read_mysql_version(version_file_name="MYSQL_VERSION"):
+    """Parses the version file to a dict."""
+    version = {}
+    with open(version_file_name, "r", encoding="ascii") as version_file:
+        for line in version_file:
+            data = line.split("=")
+            version[data[0]] = int(data[1].strip())
+    return version
+
+
+def get_mysqld_executable_path(version, build_dir):
+    """The full executable path of mysqld given version and build directory."""
+    if version["MYSQL_VERSION_MAJOR"] < 8:
+        return f"{build_dir}/sql/mysqld"
+    return f"{build_dir}/runtime_output_directory/mysqld"
+
+
 def deparse(flag, arg):
     """Deparses a single command-line argument"""
     deparsed_flag = f"--{flag}" if len(flag) > 1 else f"-{flag}"

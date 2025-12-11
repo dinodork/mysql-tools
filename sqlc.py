@@ -1,6 +1,8 @@
 """Starts the MySQL client"""
 
 import argparse
+import sys
+
 import mysql
 
 
@@ -32,15 +34,22 @@ def main():
         build_dir = f"build/{args.build_type.strip('\'')}"
         # fmt:on
 
-    version = mysql.read_mysql_version()
+    # pylint: disable=duplicate-code
+    try:
+        version = mysql.read_mysql_version()
+    except OSError:
+        print("Exiting")
+        sys.exit(1)
+
     mysql_executable = f"{build_dir}/runtime_output_directory/mysql"
+
+
+    if args.socket is None:
+        args.socket = mysql.get_socket_name(version, args)
 
     # Remove all arguments that were meant only for this script
     del args.build_dir
     del args.build_type
-
-    if args.socket is None:
-        args.socket = mysql.get_socket_name(version, args)
 
     mysql.start_client(mysql_executable, args, unknown_args)
 

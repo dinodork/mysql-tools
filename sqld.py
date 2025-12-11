@@ -3,6 +3,7 @@
 import argparse
 import os
 import pathlib
+import sys
 
 import mysql
 
@@ -20,7 +21,7 @@ class ExpandPath(argparse.Action):
 def main():
     """Guts of the script"""
 
-    parser = argparse.ArgumentParser(description="Starts mysqld and drops you into it.")
+    parser = argparse.ArgumentParser(description="Starts mysqld in the background.")
 
     mysqld_args = parser.add_argument_group(
         "mysqld options", "Passed verbatim to mysqld."
@@ -35,23 +36,24 @@ def main():
         type=pathlib.Path,
         default=mysql.DEFAULT_DATADIR,
         action=ExpandPath,
-        help="Passed to mysqld, but expands the `~' character.",
+        help="passed to mysqld, but expands the `~' character",
     )
 
-    parser.add_argument(
+    build_args = parser.add_mutually_exclusive_group()
+    build_args.add_argument(
         "-B",
         "--build-dir",
         type=ascii,
-        help="Lets you specify the build " "directory directly.",
+        help="lets you specify the build directory directly, instead of inferring it from the "
+        "build type (see --build-type)",
     )
-    parser.add_argument(
+    build_args.add_argument(
         "-b",
         "--build-type",
         type=ascii,
-        default=mysql.DEFAULT_BUILD_TYPE,
-        help="This option assumes that you have built mysql in a directory named "
+        help="assumes that you have built mysql in a directory named "
         "`build/<build type>` in the current directory. You can specify an "
-        "arbitrary build directory using --build-dir.",
+        "arbitrary build directory using --build-dir",
     )
 
     args, unknown_args = parser.parse_known_args()
@@ -66,15 +68,24 @@ def main():
         build_dir = f"build/{args.build_type.strip('\'')}"
         # fmt:on
 
-    # Remove all arguments that were meant only for this script
-    del args.build_dir
-    del args.build_type
+    if not args.build_dir and not args.build_type:
+        setattr(args, "build_type", "debug")
 
-    version = mysql.read_mysql_version()
+    # pylint: disable=duplicate-code
+    try:
+        version = mysql.read_mysql_version()
+    except OSError:
+        print("Exiting")
+        sys.exit(1)
+
     mysqld_executable = mysql.get_mysqld_executable_path(version, build_dir)
 
     if args.socket is None:
         args.socket = mysql.get_socket_name(version, args)
+
+    # Remove all arguments that were meant only for this script
+    del args.build_dir
+    del args.build_type
 
     mysql.start_mysqld(mysqld_executable, args, unknown_args)
 

@@ -3,6 +3,7 @@
 import os
 import subprocess
 import pathlib
+import sys
 
 PORT = 11211
 DEFAULT_BUILD_TYPE = "debug"
@@ -12,19 +13,51 @@ DEFAULT_DATABASE = "mysql"
 SOCKET = "/tmp/mysql-8.0.sock"
 
 
+# pylint: disable=inconsistent-return-statements
+def get_build_type(args):
+    # pylint: enable=inconsistent-return-statements
+    """Determines the type of the build."""
+
+    if args.build_type:
+        return args.build_type.strip("'")
+    if args.build_dir:
+        build_dir = args.build_dir.strip("'")
+        cmake_cache_path = f"{build_dir}/CMakeCache.txt"
+        try:
+            with open(cmake_cache_path, "r", encoding="utf-8") as cmake_cache:
+                for line in cmake_cache:
+                    if line[:24] == "CMAKE_BUILD_TYPE:STRING=":
+                        print(f" lajn '{line[24:]}'")
+                        return line[24:].strip()
+        except FileNotFoundError:
+            print(f"Warning, can't find {cmake_cache_path}", file=sys.stderr)
+
+            return "unknown"
+
+
 def get_socket_name(version, args):
     """Generates a socket file name from the version an build type."""
-    return f"/tmp/mysql-{version['MYSQL_VERSION_MAJOR']}.{version['MYSQL_VERSION_MINOR']}.sock"
+    return (
+        f"/tmp/mysql-{version['MYSQL_VERSION_MAJOR']}.{version['MYSQL_VERSION_MINOR']}-"
+        f"{get_build_type(args)}.sock"
+    )
 
 
 def read_mysql_version(version_file_name="MYSQL_VERSION"):
     """Parses the version file to a dict."""
     version = {}
-    with open(version_file_name, "r", encoding="ascii") as version_file:
-        for line in version_file:
-            data = line.split("=")
-            value = data[1].strip()
-            version[data[0]] = int(value) if value.isdigit() else value
+    try:
+        with open(version_file_name, "r", encoding="ascii") as version_file:
+            for line in version_file:
+                data = line.split("=")
+                value = data[1].strip()
+                version[data[0]] = int(value) if value.isdigit() else value
+    except FileNotFoundError:
+        print(
+            f"Warning, can't find {version_file_name} in current directory!",
+            file=sys.stderr,
+        )
+        raise
     return version
 
 
@@ -57,7 +90,7 @@ def deparse(flag, arg):
 
 
 def deparse_arglist(args):
-    """Deparses an argparse Namespace into a list of command-line arguments"""
+    """Deparses an argparse Namespace back into a list of command-line arguments."""
     arglist = []
 
     for item in vars(args).items():
@@ -69,7 +102,7 @@ def deparse_arglist(args):
 
 
 def start_mysqld(executable, args, unknown_args):
-    """Guts of the script"""
+    """Starts the mysqld process."""
 
     subprocess_args = [executable] + deparse_arglist(args) + unknown_args
 
@@ -80,7 +113,7 @@ def start_mysqld(executable, args, unknown_args):
 
 
 def start_client(executable, args, unknown_args):
-    """Starts the MySQL client"""
+    """Starts the MySQL client."""
 
     subprocess_args = [executable] + deparse_arglist(args) + unknown_args
 

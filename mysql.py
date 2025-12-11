@@ -1,7 +1,6 @@
 """Starts the MySQL server"""
 
 import os
-import sys
 import subprocess
 import pathlib
 
@@ -9,8 +8,13 @@ PORT = 11211
 DEFAULT_BUILD_TYPE = "debug"
 DEFAULT_DATADIR = f"{os.getcwd()}/mydata"
 DEFAULT_USER = "root"
-DEFAULT_DATABASE = "test"
+DEFAULT_DATABASE = "mysql"
 SOCKET = "/tmp/mysql-8.0.sock"
+
+
+def get_socket_name(version, args):
+    """Generates a socket file name from the version an build type."""
+    return f"/tmp/mysql-{version['MYSQL_VERSION_MAJOR']}.{version['MYSQL_VERSION_MINOR']}.sock"
 
 
 def read_mysql_version(version_file_name="MYSQL_VERSION"):
@@ -19,7 +23,8 @@ def read_mysql_version(version_file_name="MYSQL_VERSION"):
     with open(version_file_name, "r", encoding="ascii") as version_file:
         for line in version_file:
             data = line.split("=")
-            version[data[0]] = int(data[1].strip())
+            value = data[1].strip()
+            version[data[0]] = int(value) if value.isdigit() else value
     return version
 
 
@@ -74,10 +79,10 @@ def start_mysqld(executable, args, unknown_args):
     subprocess.Popen(subprocess_args)
 
 
-def start_client(executable, args):
+def start_client(executable, args, unknown_args):
     """Starts the MySQL client"""
 
-    subprocess_args = [executable] + deparse_arglist(args) + sys.argv[1:]
+    subprocess_args = [executable] + deparse_arglist(args) + unknown_args
 
     print(f"Running mysql like this: {" ".join(subprocess_args)}")
 

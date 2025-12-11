@@ -27,6 +27,7 @@ def main():
     )
 
     mysqld_args.add_argument("--port", type=int, default=mysql.PORT)
+    mysqld_args.add_argument("--socket", type=str)
     mysqld_args.add_argument("--no-defaults", action="store_true")
     mysqld_args.add_argument("--lower-case-table-names", type=int, default=1)
     mysqld_args.add_argument(
@@ -71,6 +72,9 @@ def main():
 
     version = mysql.read_mysql_version()
     mysqld_executable = mysql.get_mysqld_executable_path(version, build_dir)
+
+    if args.socket is None:
+        args.socket = mysql.get_socket_name(version, args)
 
     mysql.start_mysqld(mysqld_executable, args, unknown_args)
 

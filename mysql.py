@@ -1,13 +1,12 @@
 """Starts the MySQL server"""
 
-import os
 import subprocess
 import pathlib
 import sys
 
 PORT = 11211
 DEFAULT_BUILD_TYPE = "debug"
-DEFAULT_DATADIR = f"{os.getcwd()}/mydata"
+DEFAULT_DATADIR = "mydata"
 DEFAULT_USER = "root"
 DEFAULT_DATABASE = "mysql"
 SOCKET = "/tmp/mysql-8.0.sock"
@@ -19,9 +18,9 @@ def get_build_type(args):
     """Determines the type of the build."""
 
     if args.build_type:
-        return args.build_type.strip("'")
+        return args.build_type
     if args.build_dir:
-        build_dir = args.build_dir.strip("'")
+        build_dir = args.build_dir
         cmake_cache_path = f"{build_dir}/CMakeCache.txt"
         try:
             with open(cmake_cache_path, "r", encoding="utf-8") as cmake_cache:
@@ -43,18 +42,20 @@ def get_socket_name(version, args):
     )
 
 
-def read_mysql_version(version_file_name="MYSQL_VERSION"):
+def read_mysql_version(workdir, version_file_name="MYSQL_VERSION"):
     """Parses the version file to a dict."""
     version = {}
     try:
-        with open(version_file_name, "r", encoding="ascii") as version_file:
+        with open(
+            f"{workdir}/{version_file_name}", "r", encoding="ascii"
+        ) as version_file:
             for line in version_file:
                 data = line.split("=")
                 value = data[1].strip()
                 version[data[0]] = int(value) if value.isdigit() else value
     except FileNotFoundError:
         print(
-            f"Warning, can't find {version_file_name} in current directory!",
+            f"Warning, can't find {version_file_name} in {workdir}!",
             file=sys.stderr,
         )
         raise
@@ -68,6 +69,13 @@ def get_mysqld_executable_path(version, build_dir):
     return f"{build_dir}/runtime_output_directory/mysqld"
 
 
+def get_mysql_executable_path(version, build_dir):
+    """The full executable path of mysqld given version and build directory."""
+    if version["MYSQL_VERSION_MAJOR"] < 8:
+        return f"{build_dir}/client/mysql"
+    return f"{build_dir}/runtime_output_directory/mysql"
+
+
 def deparse(flag, arg):
     """Deparses a single command-line argument"""
     deparsed_flag = f"--{flag}" if len(flag) > 1 else f"-{flag}"
@@ -76,10 +84,8 @@ def deparse(flag, arg):
         return deparsed_flag if arg else None
 
     if isinstance(arg, str):
-        # Black can't handle this line
-        # fmt:off
-        return f"{deparsed_flag}={str(arg).strip('\'')}"
-        # fmt:on
+        return f"{deparsed_flag}={str(arg)}"
+
     if isinstance(arg, int):
         return f"{deparsed_flag}={int(arg)}"
 
@@ -107,6 +113,9 @@ def start_mysqld(executable, args, unknown_args):
     subprocess_args = [executable] + deparse_arglist(args) + unknown_args
 
     print(f"Running mysqld like this: {" ".join(subprocess_args)}")
+
+    if args.dry_run:
+        return
 
     # pylint: disable=consider-using-with
     subprocess.Popen(subprocess_args)

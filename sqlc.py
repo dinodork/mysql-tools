@@ -14,6 +14,13 @@ def main():
         description="Start the mysql client and drops you into it."
     )
 
+    parser.add_argument(
+        "-C",
+        "--workdir",
+        default=os.getcwd(),
+        help="change to DIR before doing anything else",
+    )
+
     mysql_args = parser.add_argument_group("mysql options", "Passed verbatim to mysql.")
 
     mysql_args.add_argument("--socket", type=str)
@@ -30,12 +37,12 @@ def main():
     else:
         # Black can't handle this line
         # fmt:off
-        build_dir = f"build/{args.build_type.strip('\'')}"
+        build_dir = f"{args.workdir}/build/{args.build_type}"
         # fmt:on
 
     # pylint: disable=duplicate-code
     try:
-        version = mysql.read_mysql_version(os.getcwd())
+        version = mysql.read_mysql_version(args.workdir)
     except OSError:
         print("Exiting")
         sys.exit(1)
@@ -48,6 +55,7 @@ def main():
     # Remove all arguments that were meant only for this script
     del args.build_dir
     del args.build_type
+    del args.workdir
 
     mysql.start_client(mysql_executable, args, unknown_args)
 

@@ -3,6 +3,7 @@
 import subprocess
 import pathlib
 import sys
+import os
 
 PORT = 11211
 DEFAULT_BUILD_TYPE = "debug"
@@ -128,4 +129,4 @@ def start_client(executable, args, unknown_args):
 
     print(f"Running mysql like this: {" ".join(subprocess_args)}")
 
-    subprocess.call(subprocess_args)
+    os.execv(executable, subprocess_args)

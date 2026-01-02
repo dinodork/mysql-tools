@@ -11,7 +11,7 @@ def main():
     """Guts of the script"""
 
     parser = argparse.ArgumentParser(
-        description="Start the mysql client and drops you into it."
+        description="Starts mysql client and drops you into it."
     )
 
     parser.add_argument(
@@ -23,41 +23,57 @@ def main():
 
     mysql_args = parser.add_argument_group("mysql options", "Passed verbatim to mysql.")
 
+    # All arguments added here must be manually added to mysql_args
     mysql_args.add_argument("--socket", type=str)
+    mysql_args.add_argument("-u", "--user", default=mysql.Defaults.USER)
+    mysql_args.add_argument("-D", "--database", default=mysql.Defaults.DATABASE)
 
-    parser.add_argument("-u", "--user", default=mysql.DEFAULT_USER)
-    parser.add_argument("-D", "--database", default=mysql.DEFAULT_DATABASE)
     parser.add_argument("-B", "--build-dir")
-    parser.add_argument("-b", "--build-type", default=mysql.DEFAULT_BUILD_TYPE)
+    parser.add_argument("-b", "--build-type", default=mysql.Defaults.BUILD_TYPE)
+
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="don't actually start mysql, only print how it would have started and then exit",
+    )
+
+    # pylint: disable=duplicate-code
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=1,
+        help="verbosity",
+    )
 
     args, unknown_args = parser.parse_known_args()
 
     if args.build_dir:
         build_dir = args.build_dir
     else:
-        # Black can't handle this line
-        # fmt:off
         build_dir = f"{args.workdir}/build/{args.build_type}"
-        # fmt:on
 
-    # pylint: disable=duplicate-code
     try:
         version = mysql.read_mysql_version(args.workdir)
     except OSError:
         print("Exiting")
         sys.exit(1)
 
+    build_type, build_dir = mysql.determine_build_specifics(args)
+
+    mysql_args = [f"--user={args.user}", f"--database={args.database}"] + unknown_args
+
+    if args.socket:
+        mysql_args += [f"--socket={args.socket}"]
+    else:
+        mysql_args += [f"--socket={mysql.get_socket_name(version, build_type)}"]
+
     mysql_executable = mysql.get_mysql_executable_path(version, build_dir)
 
     if args.socket is None:
         args.socket = mysql.get_socket_name(version, args)
 
-    # Remove all arguments that were meant only for this script
-    del args.build_dir
-    del args.build_type
-    del args.workdir
-
-    mysql.start_client(mysql_executable, args, unknown_args)
+    mysql.start_client(mysql_executable, args, mysql_args)
 
 
 if __name__ == "__main__":

@@ -5,42 +5,55 @@ import pathlib
 import sys
 import os
 
-PORT = 11211
-DEFAULT_BUILD_TYPE = "debug"
-DEFAULT_DATADIR = "mydata"
-DEFAULT_USER = "root"
-DEFAULT_DATABASE = "mysql"
-SOCKET = "/tmp/mysql-8.0.sock"
+
+# pylint: disable=too-few-public-methods
+class Defaults:
+    """Should probably be loaded from a file"""
+
+    BUILD_TYPE = "debug"
+    DATABASE = "mysql"
+    DATADIR = "mydata"
+    LOWER_CASE_TABLE_NAMES = 2
+    PORT = 11211
+    USER = "root"
 
 
-# pylint: disable=inconsistent-return-statements
-def get_build_type(args):
-    # pylint: enable=inconsistent-return-statements
-    """Determines the type of the build."""
+def determine_build_specifics(args):
+    """This is the complex part of these scripts. Basically, there are two
+    modes of working. Either you specify the build type, in which case mysql
+    gets built in `build/<build type>` under the source director. The other
+    option is to specify the full build path (doesn't have to be absolute
+    though)"""
 
-    if args.build_type:
-        return args.build_type
-    if args.build_dir:
+    if not args.build_dir and not args.build_type:
+        build_type = Defaults.BUILD_TYPE
+        build_dir = f"build/{build_type}"
+        if args.verbose >= 1:
+            print(
+                "Neither --build-type nor --build-dir specified, defaulting build type to "
+                f"{build_type} and build directory to {build_dir}"
+            )
+    elif args.build_type:
+        build_type = args.build_type
+        build_dir = f"build/{build_type}"
+        if args.verbose >= 1:
+            print(
+                f"--build-type {build_type} specified, setting build directory to {build_dir}"
+            )
+    elif args.build_dir:
         build_dir = args.build_dir
-        cmake_cache_path = f"{build_dir}/CMakeCache.txt"
-        try:
-            with open(cmake_cache_path, "r", encoding="utf-8") as cmake_cache:
-                for line in cmake_cache:
-                    if line[:24] == "CMAKE_BUILD_TYPE:STRING=":
-                        print(f" lajn '{line[24:]}'")
-                        return line[24:].strip()
-        except FileNotFoundError:
-            print(f"Warning, can't find {cmake_cache_path}", file=sys.stderr)
+        if args.verbose >= 1:
+            print(f"--build-dir specified, setting build directory to {build_dir}")
 
-            return "unknown"
+    return build_type, build_dir
 
 
-def get_socket_name(version, args):
-    """Generates a socket file name from the version an build type."""
-    return (
-        f"/tmp/mysql-{version['MYSQL_VERSION_MAJOR']}.{version['MYSQL_VERSION_MINOR']}-"
-        f"{get_build_type(args)}.sock"
-    )
+def get_socket_name(version, build_type):
+    """Generates a socket file name from the version and build type."""
+    major_version = version["MYSQL_VERSION_MAJOR"]
+    minor_version = version["MYSQL_VERSION_MINOR"]
+
+    return f"/tmp/mysql-{major_version}.{minor_version}-{build_type}.sock"
 
 
 def read_mysql_version(workdir, version_file_name="MYSQL_VERSION"):
@@ -108,25 +121,28 @@ def deparse_arglist(args):
     return arglist
 
 
-def start_mysqld(executable, args, unknown_args):
+def start_mysqld(executable, args, mysqld_args):
     """Starts the mysqld process."""
 
-    subprocess_args = [executable] + deparse_arglist(args) + unknown_args
-
-    print(f"Running mysqld like this: {" ".join(subprocess_args)}")
+    subprocess_args = [executable] + mysqld_args
 
     if args.dry_run:
+        print(f"Would have run mysqld like this: {" ".join(subprocess_args)}")
         return
+    print(f"Running mysqld like this: {" ".join(subprocess_args)}")
 
     # pylint: disable=consider-using-with
     subprocess.Popen(subprocess_args)
 
 
-def start_client(executable, args, unknown_args):
+def start_client(executable, args, client_args):
     """Starts the MySQL client."""
 
-    subprocess_args = [executable] + deparse_arglist(args) + unknown_args
+    subprocess_args = [executable] + client_args
 
+    if args.dry_run:
+        print(f"Would have run mysql like this: {" ".join(subprocess_args)}")
+        return
     print(f"Running mysql like this: {" ".join(subprocess_args)}")
 
     os.execv(executable, subprocess_args)

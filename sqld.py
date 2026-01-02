@@ -118,8 +118,10 @@ def main():
         + unknown_args
     )
 
+    socket = mysql.get_socket_path(version, build_type)
+
     if not args.socket:
-        mysqld_args += [f"--socket={mysql.get_socket_name(version, build_type)}"]
+        mysqld_args += [f"--socket={socket}"]
 
     if build_type.lower() == "debug":
         mysqld_args += ["--gdb"]
@@ -128,6 +130,14 @@ def main():
 
     if version["MYSQL_VERSION_MAJOR"] <= 5:
         unknown_args.append(f"--lc-messages-dir={build_dir}/sql/share/english")
+
+    lockfile = f"{socket}.lock"
+    if os.path.isfile(lockfile):
+        answer = input(f"Found lock file {lockfile}. Delete? [y/n/Q]: ")
+        if answer.lower().strip() == "y":
+            os.remove(lockfile)
+        elif answer.lower().strip() == "q" or answer == "":
+            sys.exit(0)
 
     mysql.start_mysqld(mysqld_executable, args, mysqld_args)
 

@@ -66,12 +66,12 @@ def main():
     if args.socket:
         mysql_args += [f"--socket={args.socket}"]
     else:
-        mysql_args += [f"--socket={mysql.get_socket_name(version, build_type)}"]
+        mysql_args += [f"--socket={mysql.get_socket_path(version, build_type)}"]
 
     mysql_executable = mysql.get_mysql_executable_path(version, build_dir)
 
     if args.socket is None:
-        args.socket = mysql.get_socket_name(version, args)
+        args.socket = mysql.get_socket_path(version, args)
 
     mysql.start_client(mysql_executable, args, mysql_args)
 

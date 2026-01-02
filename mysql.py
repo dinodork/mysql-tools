@@ -48,7 +48,7 @@ def determine_build_specifics(args):
     return build_type, build_dir
 
 
-def get_socket_name(version, build_type):
+def get_socket_path(version, build_type):
     """Generates a socket file name from the version and build type."""
     major_version = version["MYSQL_VERSION_MAJOR"]
     minor_version = version["MYSQL_VERSION_MINOR"]

@@ -1,7 +1,6 @@
 """Starts the MySQL server"""
 
 import subprocess
-import pathlib
 import sys
 import os
 
@@ -88,37 +87,6 @@ def get_mysql_executable_path(version, build_dir):
     if version["MYSQL_VERSION_MAJOR"] < 8:
         return f"{build_dir}/client/mysql"
     return f"{build_dir}/runtime_output_directory/mysql"
-
-
-def deparse(flag, arg):
-    """Deparses a single command-line argument"""
-    deparsed_flag = f"--{flag}" if len(flag) > 1 else f"-{flag}"
-
-    if isinstance(arg, bool):
-        return deparsed_flag if arg else None
-
-    if isinstance(arg, str):
-        return f"{deparsed_flag}={str(arg)}"
-
-    if isinstance(arg, int):
-        return f"{deparsed_flag}={int(arg)}"
-
-    if isinstance(arg, pathlib.Path):
-        return f"{deparsed_flag}={arg}"
-
-    return None
-
-
-def deparse_arglist(args):
-    """Deparses an argparse Namespace back into a list of command-line arguments."""
-    arglist = []
-
-    for item in vars(args).items():
-        deparsed_item = deparse(*item)
-        if deparsed_item:
-            arglist.append(deparsed_item)
-
-    return arglist
 
 
 def start_mysqld(executable, args, mysqld_args):

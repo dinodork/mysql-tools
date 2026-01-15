@@ -5,9 +5,10 @@ ARG username
 RUN useradd -m "$username" && chsh -s /bin/bash "$username"
 RUN mkdir "/home/$username/.ssh" -m 700 && chown "$username:$username" "/home/$username/.ssh"
 
-RUN echo 'export PATH=$PATH:/home/$username/gitroot/scripts\n'\
+RUN echo "export PATH=$PATH:/home/$username/gitroot/scripts"\
+":/home/$username/gitroot/mysql-tools\n" \
 '. /usr/share/bash-completion/completions/git' \
->> /home/"$username"/.bashrc
+>> "/home/$username/.bashrc"
 
 RUN yes | unminimize
 RUN apt update && apt -y install build-essential cmake zlib1g-dev ninja-build \

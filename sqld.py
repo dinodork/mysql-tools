@@ -68,7 +68,7 @@ def make_parser():
         "-d",
         "--debug",
         action="store_true",
-        help="debug this script.",
+        help="debug this script",
     )
 
     parser.add_argument(
@@ -83,6 +83,19 @@ def make_parser():
         "-C",
         metavar="directory",
         help="change to <directory> before doing anything else",
+    )
+
+    parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Answer every question with 'yes'",
+    )
+
+    parser.add_argument(
+        "--create",
+        action="store_true",
+        help="Creates a database before starting.",
     )
 
     return parser
@@ -101,14 +114,14 @@ def main():
     os.makedirs(datadir, exist_ok=True)
 
     try:
-        version = mysql.read_mysql_version(workdir)
+        version = mysql.read_mysql_version(args, workdir)
     except OSError:
         print("Exiting")
         sys.exit(1)
 
     build_type, build_dir = mysql.determine_build_specifics(args)
 
-    mysqld_args = (
+    mysqld_argv = (
         [
             f"--datadir={datadir}",
             f"--lower_case_table_names={args.lower_case_table_names}",
@@ -121,10 +134,10 @@ def main():
     socket = mysql.get_socket_path(version, build_type)
 
     if not args.socket:
-        mysqld_args += [f"--socket={socket}"]
+        mysqld_argv += [f"--socket={socket}"]
 
     if build_type.lower() == "debug":
-        mysqld_args += ["--gdb"]
+        mysqld_argv += ["--gdb"]
 
     mysqld_executable = mysql.get_mysqld_executable_path(version, build_dir)
 
@@ -133,13 +146,19 @@ def main():
 
     lockfile = f"{socket}.lock"
     if os.path.isfile(lockfile):
-        answer = input(f"Found lock file {lockfile}. Delete? [y/n/Q]: ")
-        if answer.lower().strip() == "y":
+        if args.yes:
             os.remove(lockfile)
-        elif answer.lower().strip() == "q" or answer == "":
-            sys.exit(0)
+        else:
+            answer = input(f"Found lock file {lockfile}. Delete? [y/n/Q]: ")
+            if answer.lower().strip() == "y":
+                os.remove(lockfile)
+            elif answer.lower().strip() == "q" or answer == "":
+                sys.exit(0)
 
-    mysql.start_mysqld(mysqld_executable, args, mysqld_args)
+    if args.create:
+        mysql.create_database(version, mysqld_executable, datadir, workdir, args)
+
+    mysql.start_mysqld(mysqld_executable, args, mysqld_argv)
 
 
 if __name__ == "__main__":

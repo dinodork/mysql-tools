@@ -54,7 +54,7 @@ def main():
         build_dir = f"{args.workdir}/build/{args.build_type}"
 
     try:
-        version = mysql.read_mysql_version(args.workdir)
+        version = mysql.read_mysql_version(args, args.workdir)
     except OSError:
         print("Exiting")
         sys.exit(1)

@@ -55,12 +55,27 @@ def get_socket_path(version, build_type):
     return f"/tmp/mysql-{major_version}.{minor_version}-{build_type}.sock"
 
 
-def read_mysql_version(workdir, version_file_name="MYSQL_VERSION"):
+def read_mysql_version(args, workdir):
     """Parses the version file to a dict."""
     version = {}
+    found_version_file_name = None
+
+    for version_file_name in ["MYSQL_VERSION", "VERSION"]:
+        if os.path.isfile(version_file_name):
+            if args.verbose >= 1:
+                print(f"Found version file {version_file_name}")
+            found_version_file_name = version_file_name
+            break
+
+    if found_version_file_name is None:
+        print(
+            f"Warning, can't find a version file in {workdir}!",
+            file=sys.stderr,
+        )
+
     try:
         with open(
-            f"{workdir}/{version_file_name}", "r", encoding="ascii"
+            f"{workdir}/{found_version_file_name}", "r", encoding="ascii"
         ) as version_file:
             for line in version_file:
                 data = line.split("=")
@@ -68,7 +83,7 @@ def read_mysql_version(workdir, version_file_name="MYSQL_VERSION"):
                 version[data[0]] = int(value) if value.isdigit() else value
     except FileNotFoundError:
         print(
-            f"Warning, can't find {version_file_name} in {workdir}!",
+            f"Warning, failed to open {found_version_file_name} in {workdir}!",
             file=sys.stderr,
         )
         raise
@@ -87,6 +102,26 @@ def get_mysql_executable_path(version, build_dir):
     if version["MYSQL_VERSION_MAJOR"] < 8:
         return f"{build_dir}/client/mysql"
     return f"{build_dir}/runtime_output_directory/mysql"
+
+
+def create_database(version, executable, datadir, workdir, args):
+    """Creates the database."""
+
+    subprocess_args = [executable, f"--datadir={datadir}", "--initialize-insecure"]
+    if args.verbose >= 1:
+        print(f"Creating database in {datadir}")
+    if version["MYSQL_VERSION_MAJOR"] <= 5:
+        subprocess_args += [
+            f"--lc-messages-dir={workdir}/build/debug/sql/share/english",
+        ]
+
+    if args.dry_run:
+        print(f"Would have run mysqld like this: {" ".join(subprocess_args)}")
+        return
+
+    print(f"Running mysqld like this: {" ".join(subprocess_args)}")
+
+    subprocess.run(subprocess_args, check=True)
 
 
 def start_mysqld(executable, args, mysqld_args):

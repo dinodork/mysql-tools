@@ -14,6 +14,7 @@ def main():
         description="Starts mysql client and drops you into it."
     )
 
+    # pylint: disable=duplicate-code
     parser.add_argument(
         "-C",
         "--workdir",

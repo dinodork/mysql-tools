@@ -17,33 +17,35 @@ class Defaults:
     USER = "root"
 
 
-def determine_build_specifics(args):
+def determine_build_specifics(args) -> (str, str):
     """This is the complex part of these scripts. Basically, there are two
     modes of working. Either you specify the build type, in which case mysql
     gets built in `build/<build type>` under the source director. The other
     option is to specify the full build path (doesn't have to be absolute
     though)"""
 
-    if not args.build_dir and not args.build_type:
-        build_type = Defaults.BUILD_TYPE
-        build_dir = f"build/{build_type}"
+    if args.build_dir:
+        build_dir = args.build_dir
         if args.verbose >= 1:
-            print(
-                "Neither --build-type nor --build-dir specified, defaulting build type to "
-                f"{build_type} and build directory to {build_dir}"
-            )
-    elif args.build_type:
+            print(f"--build-dir specified, setting build directory to {build_dir}")
+        return None, build_dir
+
+    if args.build_type:
         build_type = args.build_type
-        build_dir = f"build/{build_type}"
+        build_dir = f"{args.workdir}/build/{build_type}"
         if args.verbose >= 1:
             print(
                 f"--build-type {build_type} specified, setting build directory to {build_dir}"
             )
-    elif args.build_dir:
-        build_dir = args.build_dir
-        if args.verbose >= 1:
-            print(f"--build-dir specified, setting build directory to {build_dir}")
+        return build_type, build_dir
 
+    build_type = Defaults.BUILD_TYPE
+    build_dir = f"{args.workdir}/build/{build_type}"
+    if args.verbose >= 1:
+        print(
+            "Neither --build-type nor --build-dir specified, defaulting build type to "
+            f"{build_type} and build directory to {build_dir}"
+        )
     return build_type, build_dir
 
 

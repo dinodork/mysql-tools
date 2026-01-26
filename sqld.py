@@ -81,8 +81,9 @@ def make_parser():
 
     parser.add_argument(
         "-C",
-        metavar="directory",
-        help="change to <directory> before doing anything else",
+        "--workdir",
+        default=os.getcwd(),
+        help="change to DIR before doing anything else",
     )
 
     parser.add_argument(
@@ -106,46 +107,46 @@ def main():
 
     parser = make_parser()
 
-    args, unknown_args = parser.parse_known_args()
-
-    workdir = args.C if args.C else os.getcwd()
-    datadir = args.datadir if args.datadir else f"{workdir}/{mysql.Defaults.DATADIR}"
+    args, mysqld_args = parser.parse_known_args()
+    datadir = (
+        args.datadir if args.datadir else f"{args.workdir}/{mysql.Defaults.DATADIR}"
+    )
 
     os.makedirs(datadir, exist_ok=True)
 
     try:
-        version = mysql.read_mysql_version(args, workdir)
+        version = mysql.read_mysql_version(args, args.workdir)
     except OSError:
         print("Exiting")
         sys.exit(1)
 
     build_type, build_dir = mysql.determine_build_specifics(args)
 
-    mysqld_argv = (
-        [
-            f"--datadir={datadir}",
-            f"--lower_case_table_names={args.lower_case_table_names}",
-            f"--port={args.port}",
-        ]
-        + (["--no-defaults"] if args.no_defaults else [])
-        + unknown_args
-    )
+    mysqld_args += [
+        f"--datadir={datadir}",
+        f"--lower_case_table_names={args.lower_case_table_names}",
+        f"--port={args.port}",
+    ]
+
+    if args.no_defaults:
+        mysqld_args += ["--no-defaults"]
 
     socket = mysql.get_socket_path(version, build_type)
 
     if not args.socket:
-        mysqld_argv += [f"--socket={socket}"]
+        mysqld_args += [f"--socket={socket}"]
 
     if build_type.lower() == "debug":
-        mysqld_argv += ["--gdb"]
+        mysqld_args += ["--gdb"]
 
     mysqld_executable = mysql.get_mysqld_executable_path(version, build_dir)
 
+    print(version)
     if version["MYSQL_VERSION_MAJOR"] <= 5:
-        unknown_args.append(f"--lc-messages-dir={build_dir}/sql/share/english")
+        mysqld_args += [f"--lc-messages-dir={build_dir}/sql/share/english"]
 
     lockfile = f"{socket}.lock"
-    if os.path.isfile(lockfile):
+    if not args.dry_run and os.path.isfile(lockfile):
         if args.yes:
             os.remove(lockfile)
         else:
@@ -156,9 +157,9 @@ def main():
                 sys.exit(0)
 
     if args.create:
-        mysql.create_database(version, mysqld_executable, datadir, workdir, args)
+        mysql.create_database(version, mysqld_executable, datadir, args.workdir, args)
 
-    mysql.start_mysqld(mysqld_executable, args, mysqld_argv)
+    mysql.start_mysqld(mysqld_executable, args, mysqld_args)
 
 
 if __name__ == "__main__":

@@ -123,7 +123,11 @@ def create_database(version, executable, datadir, workdir, args):
 
     print(f"Running mysqld like this: {" ".join(subprocess_args)}")
 
-    subprocess.run(subprocess_args, check=True)
+    try:
+        subprocess.run(subprocess_args, check=True)
+    except subprocess.CalledProcessError as err:
+        print(f"Failed to create database: {err}", file=sys.stderr)
+        sys.exit(1)
 
 
 def start_mysqld(executable, args, mysqld_args):

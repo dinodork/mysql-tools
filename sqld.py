@@ -108,9 +108,17 @@ def main():
     parser = make_parser()
 
     args, mysqld_args = parser.parse_known_args()
-    datadir = (
-        args.datadir if args.datadir else f"{args.workdir}/{mysql.Defaults.DATADIR}"
-    )
+
+    if args.datadir:
+        if os.path.isabs(args.datadir):
+            datadir = args.datadir
+        else:
+            datadir = os.path.abspath(f"{args.datadir}")
+    else:
+        datadir = f"{args.workdir}/{mysql.Defaults.DATADIR}"
+
+    if not os.path.isabs(datadir):
+        datadir = os.path.abspath(datadir)
 
     os.makedirs(datadir, exist_ok=True)
 
@@ -136,7 +144,7 @@ def main():
     if not args.socket:
         mysqld_args += [f"--socket={socket}"]
 
-    if build_type.lower() == "debug":
+    if build_type and build_type.lower() == "debug":
         mysqld_args += ["--gdb"]
 
     mysqld_executable = mysql.get_mysqld_executable_path(version, build_dir)

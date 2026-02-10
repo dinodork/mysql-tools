@@ -9,10 +9,11 @@ import os
 class Defaults:
     """Should probably be loaded from a file"""
 
+    BUILD_HOME = "build"
     BUILD_TYPE = "debug"
     DATABASE = "mysql"
     DATADIR = "mydata"
-    LOWER_CASE_TABLE_NAMES = 2
+    LOWER_CASE_TABLE_NAMES = 1
     PORT = 11211
     USER = "root"
 
@@ -106,10 +107,10 @@ def get_mysql_executable_path(version, build_dir):
     return f"{build_dir}/runtime_output_directory/mysql"
 
 
-def create_database(version, executable, datadir, workdir, args):
+def create_database(version, executable, datadir, workdir, args: dict, mysqld_args: list):
     """Creates the database."""
 
-    subprocess_args = [executable, f"--datadir={datadir}", "--initialize-insecure"]
+    subprocess_args = [executable, f"--datadir={datadir}", "--initialize-insecure"] + mysqld_args
     if args.verbose >= 1:
         print(f"Creating database in {datadir}")
     if version["MYSQL_VERSION_MAJOR"] <= 5:

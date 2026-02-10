@@ -165,7 +165,7 @@ def main():
                 sys.exit(0)
 
     if args.create:
-        mysql.create_database(version, mysqld_executable, datadir, args.workdir, args)
+        mysql.create_database(version, mysqld_executable, datadir, args.workdir, args, mysqld_args)
 
     mysql.start_mysqld(mysqld_executable, args, mysqld_args)
 

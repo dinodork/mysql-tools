@@ -8,6 +8,8 @@ import sys
 
 import mysql
 
+MTR = "mysql-test-run.pl"
+
 
 def main():
     """All the work"""
@@ -24,16 +26,18 @@ def main():
 
     args, mtr_args = parser.parse_known_args()
 
+    if args.verbose >= 2:
+        print(f"mtr args: {" ".join(mtr_args)}")
+
     cwd = os.path.abspath(
         f"{mysql.Defaults.BUILD_HOME}/{mysql.Defaults.BUILD_TYPE}/mysql-test"
     )
 
-    exe = f"{cwd}/mysql-test-run.pl"
-    mtr_args = [exe] + sys.argv[1:]
+    exe = f"{cwd}/{MTR}"
+    mtr_args = [exe] + mtr_args
 
-    # If `colordiff` is available, pipe the test-run output through it.
     if args.verbose:
-        print(f"Running mysql-test-run like this: {" ".join(mtr_args)}")
+        print(f"Running {MTR} like this: {" ".join(mtr_args)}")
     if which("colordiff"):
         with subprocess.Popen(
             mtr_args, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT

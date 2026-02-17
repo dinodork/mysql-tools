@@ -107,10 +107,16 @@ def get_mysql_executable_path(version, build_dir):
     return f"{build_dir}/runtime_output_directory/mysql"
 
 
-def create_database(version, executable, datadir, workdir, args: dict, mysqld_args: list):
+def create_database(
+    version, executable, datadir, workdir, args: dict, mysqld_args: list
+):
     """Creates the database."""
 
-    subprocess_args = [executable, f"--datadir={datadir}", "--initialize-insecure"] + mysqld_args
+    subprocess_args = [
+        executable,
+        f"--datadir={datadir}",
+        "--initialize-insecure",
+    ] + mysqld_args
     if args.verbose >= 1:
         print(f"Creating database in {datadir}")
     if version["MYSQL_VERSION_MAJOR"] <= 5:
@@ -141,8 +147,8 @@ def start_mysqld(executable, args, mysqld_args):
         return
     print(f"Running mysqld like this: {" ".join(subprocess_args)}")
 
-    # pylint: disable=consider-using-with
-    subprocess.Popen(subprocess_args)
+    with subprocess.Popen(subprocess_args) as mysqld_proc:
+        mysqld_proc.wait()
 
 
 def start_client(executable, args, client_args):

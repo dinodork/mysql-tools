@@ -149,7 +149,6 @@ def main():
 
     mysqld_executable = mysql.get_mysqld_executable_path(version, build_dir)
 
-    print(version)
     if version["MYSQL_VERSION_MAJOR"] <= 5:
         mysqld_args += [f"--lc-messages-dir={build_dir}/sql/share/english"]
 
@@ -165,7 +164,9 @@ def main():
                 sys.exit(0)
 
     if args.create:
-        mysql.create_database(version, mysqld_executable, datadir, args.workdir, args, mysqld_args)
+        mysql.create_database(
+            version, mysqld_executable, datadir, args.workdir, args, mysqld_args
+        )
 
     mysql.start_mysqld(mysqld_executable, args, mysqld_args)
 

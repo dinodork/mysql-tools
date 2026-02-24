@@ -1,10 +1,20 @@
-build_type=${1:-Debug}
-build_dir=build/${build_type,,}.clang
+clang=0
 
-cmake -B "$build_dir" -GNinja -DCMAKE_BUILD_TYPE=$build_type \
+build_type=${1:-Debug}
+build_dir=${2:-build/${build_type,,}}
+
+if [ "$clang" == "1" ]; then
+   clang="-DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18"
+   build_dir="$build_dir.clang"
+fi
+
+cmd="cmake -B ${build_dir} -GNinja -DCMAKE_BUILD_TYPE=$build_type \
      -DDOWNLOAD_BOOST=1 -DWITH_BOOST=~/boost \
-     -DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18 \
-     -DWITH_AUTHENTICATION_LDAP=0 -DWITH_PERCONA_AUTHENTICATION_LDAP=0 \
-     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DFORCE_COLORED_OUTPUT=ON
+     -DWITH_AUTHENTICATION_LDAP=OFF -DWITH_PERCONA_AUTHENTICATION_LDAP=OFF \
+     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DFORCE_COLORED_OUTPUT=ON"
+
+echo $cmd
+
+${cmd}
 
 time ninja -C "$build_dir"

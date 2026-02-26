@@ -6,8 +6,10 @@ RUN useradd -m "$username" && chsh -s /bin/bash "$username"
 RUN mkdir "/home/$username/.ssh" -m 700 && chown "$username:$username" "/home/$username/.ssh"
 
 RUN echo "export PATH=$PATH:/home/$username/gitroot/scripts"\
-":/home/$username/gitroot/mysql-tools\n" \
-'. /usr/share/bash-completion/completions/git' \
+"\n"\
+":/home/$username/gitroot/mysql-tools\n\n" \
+'. /usr/share/bash-completion/completions/git\n\n' \
+eval '$(keychain --eval --agents ssh -q)\n' \
 >> "/home/$username/.bashrc"
 
 RUN yes | unminimize

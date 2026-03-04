@@ -3,6 +3,7 @@
 import argparse
 import os
 import pathlib
+import signal
 import sys
 
 import mysql
@@ -99,6 +100,18 @@ def make_parser():
         help="Creates a database before starting.",
     )
 
+    parser.add_argument(
+        "--stop",
+        action="store_true",
+        help="Stops this mysqld.",
+    )
+
+    parser.add_argument(
+        "--get-pid",
+        action="store_true",
+        help="Prints this mysqld's pid .",
+    )
+
     return parser
 
 
@@ -130,6 +143,28 @@ def main():
 
     build_type, build_dir = mysql.determine_build_specifics(args)
 
+    mysqld_executable_path = mysql.get_mysqld_executable_path(version, build_dir)
+
+    if args.get_pid:
+        pid = mysql.get_mysqld_pid(mysqld_executable_path)
+        if pid is None:
+            print("Failed to find running mysqld", file=stderr)
+            sys.exit(1)
+        print(pid)
+        exit(0)
+
+    if args.stop:
+        pid = mysql.get_mysqld_pid(mysqld_executable_path)
+        if pid is None:
+            print("Failed to find running mysqld")
+            sys.exit(1)
+
+        if args.verbose >= 2:
+            print(f"Killing mysql with pid {pid}")
+
+        os.kill(pid, signal.SIGTERM)
+        sys.exit(0)
+
     mysqld_args += [
         f"--datadir={datadir}",
         f"--lower_case_table_names={args.lower_case_table_names}",
@@ -147,8 +182,6 @@ def main():
     if build_type and build_type.lower() == "debug":
         mysqld_args += ["--gdb"]
 
-    mysqld_executable = mysql.get_mysqld_executable_path(version, build_dir)
-
     if version["MYSQL_VERSION_MAJOR"] <= 5:
         mysqld_args += [f"--lc-messages-dir={build_dir}/sql/share/english"]
 
@@ -165,10 +198,10 @@ def main():
 
     if args.create:
         mysql.create_database(
-            version, mysqld_executable, datadir, args.workdir, args, mysqld_args
+            version, mysqld_executable_path, datadir, args.workdir, args, mysqld_args
         )
 
-    mysql.start_mysqld(mysqld_executable, args, mysqld_args)
+    mysql.start_mysqld(mysqld_executable_path, args, mysqld_args)
 
 
 if __name__ == "__main__":

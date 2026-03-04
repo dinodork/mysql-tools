@@ -3,6 +3,7 @@
 import subprocess
 import sys
 import os
+import psutil
 
 
 # pylint: disable=too-few-public-methods
@@ -27,14 +28,14 @@ def determine_build_specifics(args) -> (str, str):
 
     if args.build_dir:
         build_dir = args.build_dir
-        if args.verbose >= 1:
+        if args.verbose >= 2:
             print(f"--build-dir specified, setting build directory to {build_dir}")
         return None, build_dir
 
     if args.build_type:
         build_type = args.build_type
         build_dir = f"{args.workdir}/build/{build_type}"
-        if args.verbose >= 1:
+        if args.verbose >= 2:
             print(
                 f"--build-type {build_type} specified, setting build directory to {build_dir}"
             )
@@ -42,7 +43,7 @@ def determine_build_specifics(args) -> (str, str):
 
     build_type = Defaults.BUILD_TYPE
     build_dir = f"{args.workdir}/build/{build_type}"
-    if args.verbose >= 1:
+    if args.verbose >= 2:
         print(
             "Neither --build-type nor --build-dir specified, defaulting build type to "
             f"{build_type} and build directory to {build_dir}"
@@ -65,7 +66,7 @@ def read_mysql_version(args, workdir):
 
     for version_file_name in ["MYSQL_VERSION", "VERSION"]:
         if os.path.isfile(version_file_name):
-            if args.verbose >= 1:
+            if args.verbose >= 2:
                 print(f"Found version file {version_file_name}")
             found_version_file_name = version_file_name
             break
@@ -149,6 +150,20 @@ def start_mysqld(executable, args, mysqld_args):
 
     with subprocess.Popen(subprocess_args) as mysqld_proc:
         mysqld_proc.wait()
+
+
+def get_mysqld_pid(mysqld_executable_path):
+    for proc in psutil.process_iter(["pid", "cmdline"]):
+        try:
+            if (
+                proc.info["cmdline"] is not None
+                and mysqld_executable_path in proc.info["cmdline"]
+            ):
+                return proc.pid
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+
+    return None
 
 
 def start_client(executable, args, client_args):

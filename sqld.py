@@ -176,8 +176,7 @@ def main():
 
     socket = args.socket if args.socket else mysql.get_socket_path(version, build_type)
 
-    if not args.socket:
-        mysqld_args += [f"--socket={socket}"]
+    mysqld_args += [f"--socket={socket}"]
 
     if build_type and build_type.lower() == "debug":
         mysqld_args += ["--gdb"]

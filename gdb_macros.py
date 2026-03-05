@@ -13,7 +13,7 @@ class KeyPrinter(gdb.Command):
             print("string: NULL")
         else:
             print(f"debug {val[1]} {val[2]}")
-            print(f"string of length {val[1] + (int(val[2]) << 16)}:{val + 3}")
+            print(f"string of length {val[1] + (int(val[2]) << 8)}:{val + 3}")
 
 
 KeyPrinter()

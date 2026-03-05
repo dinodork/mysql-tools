@@ -139,7 +139,7 @@ def main():
     if args.no_defaults:
         mysqld_args += ["--no-defaults"]
 
-    socket = mysql.get_socket_path(version, build_type)
+    socket = args.socket if args.socket else mysql.get_socket_path(version, build_type)
 
     if not args.socket:
         mysqld_args += [f"--socket={socket}"]

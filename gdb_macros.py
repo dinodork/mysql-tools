@@ -7,13 +7,26 @@ class KeyPrinter(gdb.Command):
     def __init__(self):
         super(KeyPrinter, self).__init__("pkey", gdb.COMMAND_USER)
 
-    def invoke(self, arg, from_tty):
-        val = gdb.parse_and_eval(arg)
-        if val[0]:
-            print("string: NULL")
-        else:
-            print(f"debug {val[1]} {val[2]}")
-            print(f"string of length {val[1] + (int(val[2]) << 8)}:{val + 3}")
+    def invoke(self, argstr, from_tty):
+        pos = 0
+        args = [s.strip('" ') for s in argstr.split(",")]
+        val = gdb.parse_and_eval(args[0])
+
+        nullable = True
+        for arg in args[1:]:
+            if arg[0] == "$":
+                arg = str(gdb.parse_and_eval(arg)).strip('" ')
+            if arg.upper() == "NN" or arg.upper() == "NOT NULL":
+                nullable = False
+
+        if nullable:
+            if val[0]:
+                print("string: NULL")
+                return
+            else:
+                pos += 1
+
+        print(f"string of length {val[pos] + (int(val[pos + 1]) << 8)}:{val + pos + 2}")
 
 
 KeyPrinter()

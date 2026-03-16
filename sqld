@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+
 SCRIPT_DIR=$(dirname "$0")
 
-"$SCRIPT_DIR/venv/bin/python3" "$SCRIPT_DIR/sqld.py" "$@" &
+"$SCRIPT_DIR/venv/bin/python3" "$SCRIPT_DIR/sqld.py" "$@"

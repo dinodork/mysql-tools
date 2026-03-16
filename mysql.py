@@ -5,6 +5,8 @@ import sys
 import os
 import psutil
 
+from daemon import Daemon
+
 
 # pylint: disable=too-few-public-methods
 class Defaults:
@@ -148,11 +150,12 @@ def start_mysqld(executable, args, mysqld_args):
         return
     print(f"Running mysqld like this: {" ".join(subprocess_args)}")
 
-    with subprocess.Popen(subprocess_args) as mysqld_proc:
-        mysqld_proc.wait()
+    daemon = Daemon(executable, subprocess_args)
+    daemon.daemonize()
 
 
 def get_mysqld_pid(mysqld_executable_path):
+    """Returns the pid of the mysqld process"""
     for proc in psutil.process_iter(["pid", "cmdline"]):
         try:
             if (

@@ -9,6 +9,14 @@ import sys
 import mysql
 
 
+class _Verbosity(argparse.Action):
+    """Keeps a single integer: -v adds 1, -q subtracts 1."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        current = getattr(namespace, self.dest)
+        setattr(namespace, self.dest, current + self.const)
+
+
 class ExpandPath(argparse.Action):
     """Because mysqld has this annoying habit of not expanding ~"""
 
@@ -74,10 +82,21 @@ def make_parser():
 
     parser.add_argument(
         "-v",
-        "--verbose",
-        action="count",
+        action=_Verbosity,
+        nargs=0,
+        const=1,
         default=1,
-        help="verbose",
+        dest="verbose",
+        help="increase verbosity (repeatable)",
+    )
+
+    parser.add_argument(
+        "-q",
+        action=_Verbosity,
+        nargs=0,
+        const=-1,
+        dest="verbose",
+        help="decrease verbosity (repeatable)",
     )
 
     parser.add_argument(

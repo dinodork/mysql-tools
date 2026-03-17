@@ -5,11 +5,7 @@ import os
 
 # pylint: disable=too-few-public-methods
 class Daemon:
-    """
-    A generic daemon class.
-
-    Usage: subclass the Daemon class and override the run() method
-    """
+    """A generic daemon class."""
 
     # pylint: disable=too-many-arguments
     def __init__(
@@ -41,6 +37,9 @@ class Daemon:
         http://www.erlenstar.demon.co.uk/unix/faq_2.html#SEC16
         """
 
+        saved_stdout = os.dup(self.stdout.fileno())
+        saved_stderr = os.dup(self.stderr.fileno())
+
         child_pid = os.fork()
         if child_pid == 0:
             os.setsid()
@@ -58,10 +57,19 @@ class Daemon:
 
             mysqld_pid = os.fork()
             if mysqld_pid == 0:
+                # Restore stdout/stderr so mysqld output is visible.
+                os.dup2(saved_stdout, 1)
+                os.dup2(saved_stderr, 2)
+                os.close(saved_stdout)
+                os.close(saved_stderr)
                 os.execv(self.executable, self.args)
                 os._exit(1)
 
+            os.close(saved_stdout)
+            os.close(saved_stderr)
             os.waitpid(mysqld_pid, 0)
             os._exit(0)
 
+        os.close(saved_stdout)
+        os.close(saved_stderr)
         os.waitpid(child_pid, 0)

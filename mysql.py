@@ -150,7 +150,13 @@ def start_mysqld(executable, args, mysqld_args):
         return
     print(f"Running mysqld like this: {" ".join(subprocess_args)}")
 
-    daemon = Daemon(executable, subprocess_args)
+    if args.verbose >= 1:
+        daemon = Daemon(
+            executable, subprocess_args, stdout=sys.stdout, stderr=sys.stderr
+        )
+    else:
+        devnull = open(os.devnull, "w")
+        daemon = Daemon(executable, subprocess_args, stdout=devnull, stderr=devnull)
     daemon.daemonize()
 
 

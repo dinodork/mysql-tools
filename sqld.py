@@ -154,13 +154,21 @@ def main():
 
     os.makedirs(datadir, exist_ok=True)
 
+    build_type, build_dir = mysql.determine_build_specifics(args)
+
+    if args.verbose >= 2:
+        print(f"Build type: {build_type}")
+        print(f"Build dir: {build_dir}")
+
     try:
         version = mysql.read_version(args, args.workdir)
     except OSError:
         print("Exiting")
         sys.exit(1)
 
-    build_type, build_dir = mysql.determine_build_specifics(args)
+    bindir = mysql.get_bin_dir(version, build_dir)
+
+    server = mysql.Server(datadir, version, bindir, args.verbose)
 
     mysqld_executable_path = mysql.get_mysqld_executable_path(version, build_dir)
 
@@ -215,10 +223,9 @@ def main():
                 sys.exit(0)
 
     if args.create:
-        mysql.create_database(
-            version, mysqld_executable_path, datadir, args.workdir, args, mysqld_args
-        )
+        server.create_database(args, mysqld_args)
 
+    print(f"start_mysqld({mysqld_executable_path}, {args}, {mysqld_args})")
     mysql.start_mysqld(mysqld_executable_path, args, mysqld_args)
 
 

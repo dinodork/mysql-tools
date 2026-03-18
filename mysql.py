@@ -21,6 +21,52 @@ class Defaults:
     USER = "root"
 
 
+class MySQL:
+    """Base class for all mysql executables (client, server)"""
+
+    def __init__(self, version, bindir, verbose):
+        self.version = version
+        self.bindir = bindir
+        self.verbose = verbose
+        print(f"mysql init w {bindir} {verbose}")
+
+
+class Server(MySQL):
+    """This class represents the server itself"""
+
+    def __init__(self, datadir, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.datadir = datadir
+        self.executable = f"{self.bindir}/mysqld"
+
+    def create_database(self, args: dict, mysqld_args: list):
+        """Creates the database."""
+
+        subprocess_args = [
+            self.executable,
+            f"--datadir={self.datadir}",
+            "--initialize-insecure",
+        ] + mysqld_args
+        if self.verbose >= 1:
+            print(f"Creating database in {self.datadir}")
+        if self.version["MYSQL_VERSION_MAJOR"] <= 5:
+            subprocess_args += [
+                f"--lc-messages-dir={self.bindir}/build/debug/sql/share/english",
+            ]
+
+        if args.dry_run:
+            print(f"Would have run mysqld like this: {" ".join(subprocess_args)}")
+            return
+
+        print(f"Running mysqld like this: {" ".join(subprocess_args)}")
+
+        try:
+            subprocess.run(subprocess_args, check=True)
+        except subprocess.CalledProcessError as err:
+            print(f"Failed to create database: {err}", file=sys.stderr)
+            sys.exit(1)
+
+
 def determine_build_specifics(args) -> (str, str):
     """This is the complex part of these scripts. Basically, there are two
     modes of working. Either you specify the build type, in which case mysql
@@ -67,7 +113,7 @@ def read_version(args, workdir):
     found_version_file_name = None
 
     for version_file_name in ["MYSQL_VERSION", "VERSION"]:
-        if os.path.isfile(version_file_name):
+        if os.path.isfile(f"{workdir}/{version_file_name}"):
             if args.verbose >= 2:
                 print(f"Found version file {version_file_name}")
             found_version_file_name = version_file_name
@@ -111,36 +157,6 @@ def get_mysql_executable_path(version, build_dir):
     return f"{get_bin_dir(version, build_dir)}/mysql"
 
 
-def create_database(
-    version, executable, datadir, workdir, args: dict, mysqld_args: list
-):
-    """Creates the database."""
-
-    subprocess_args = [
-        executable,
-        f"--datadir={datadir}",
-        "--initialize-insecure",
-    ] + mysqld_args
-    if args.verbose >= 1:
-        print(f"Creating database in {datadir}")
-    if version["MYSQL_VERSION_MAJOR"] <= 5:
-        subprocess_args += [
-            f"--lc-messages-dir={workdir}/build/debug/sql/share/english",
-        ]
-
-    if args.dry_run:
-        print(f"Would have run mysqld like this: {" ".join(subprocess_args)}")
-        return
-
-    print(f"Running mysqld like this: {" ".join(subprocess_args)}")
-
-    try:
-        subprocess.run(subprocess_args, check=True)
-    except subprocess.CalledProcessError as err:
-        print(f"Failed to create database: {err}", file=sys.stderr)
-        sys.exit(1)
-
-
 def start_mysqld(executable, args, mysqld_args):
     """Starts the mysqld process."""
 
@@ -156,7 +172,7 @@ def start_mysqld(executable, args, mysqld_args):
             executable, subprocess_args, stdout=sys.stdout, stderr=sys.stderr
         )
     else:
-        devnull = open(os.devnull, "w")
+        devnull = open(os.devnull, "w", encoding=ascii)
         daemon = Daemon(executable, subprocess_args, stdout=devnull, stderr=devnull)
     daemon.daemonize()
 

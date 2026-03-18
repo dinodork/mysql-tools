@@ -61,7 +61,7 @@ def get_socket_path(version, build_type):
     return f"/tmp/mysql-{major_version}.{minor_version}-{build_type}.sock"
 
 
-def read_mysql_version(args, workdir):
+def read_version(args, workdir):
     """Parses the version file to a dict."""
     version = {}
     found_version_file_name = None
@@ -96,18 +96,19 @@ def read_mysql_version(args, workdir):
     return version
 
 
-def get_mysqld_executable_path(version, build_dir):
-    """The full executable path of mysqld given version and build directory."""
+def get_bin_dir(version, build_dir):
+    """The binary directory given version and build directory."""
     if version["MYSQL_VERSION_MAJOR"] < 8:
-        return f"{build_dir}/sql/mysqld"
-    return f"{build_dir}/runtime_output_directory/mysqld"
+        return f"{build_dir}/sql"
+    return f"{build_dir}/runtime_output_directory"
+
+
+def get_mysqld_executable_path(version, build_dir):
+    return f"{get_bin_dir(version, build_dir)}/mysqld"
 
 
 def get_mysql_executable_path(version, build_dir):
-    """The full executable path of mysqld given version and build directory."""
-    if version["MYSQL_VERSION_MAJOR"] < 8:
-        return f"{build_dir}/client/mysql"
-    return f"{build_dir}/runtime_output_directory/mysql"
+    return f"{get_bin_dir(version, build_dir)}/mysql"
 
 
 def create_database(

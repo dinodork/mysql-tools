@@ -155,7 +155,7 @@ def main():
     os.makedirs(datadir, exist_ok=True)
 
     try:
-        version = mysql.read_mysql_version(args, args.workdir)
+        version = mysql.read_version(args, args.workdir)
     except OSError:
         print("Exiting")
         sys.exit(1)

@@ -173,15 +173,15 @@ def main():
     mysqld_executable_path = mysql.get_mysqld_executable_path(version, build_dir)
 
     if args.get_pid:
-        pid = mysql.get_mysqld_pid(mysqld_executable_path)
+        pid = server.get_pid()
         if pid is None:
-            print("Failed to find running mysqld", file=stderr)
+            print("Failed to find running mysqld", file=sys.stderr)
             sys.exit(1)
         print(pid)
-        exit(0)
+        sys.exit(0)
 
     if args.stop:
-        pid = mysql.get_mysqld_pid(mysqld_executable_path)
+        pid = server.get_pid()
         if pid is None:
             print("Failed to find running mysqld")
             sys.exit(1)
@@ -226,7 +226,7 @@ def main():
         server.create_database(args, mysqld_args)
 
     print(f"start_mysqld({mysqld_executable_path}, {args}, {mysqld_args})")
-    mysql.start_mysqld(mysqld_executable_path, args, mysqld_args)
+    server.start(args, mysqld_args)
 
 
 if __name__ == "__main__":

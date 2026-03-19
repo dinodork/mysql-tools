@@ -32,7 +32,7 @@ class MySQL:
 
 
 class Server(MySQL):
-    """This class represents the server itself"""
+    """Represents the server binary"""
 
     def __init__(self, datadir, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,6 +65,61 @@ class Server(MySQL):
         except subprocess.CalledProcessError as err:
             print(f"Failed to create database: {err}", file=sys.stderr)
             sys.exit(1)
+
+    def get_pid(self):
+        """Returns the pid of the mysqld process"""
+        for proc in psutil.process_iter(["pid", "cmdline"]):
+            try:
+                if (
+                    proc.info["cmdline"] is not None
+                    and self.executable in proc.info["cmdline"]
+                ):
+                    return proc.pid
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+
+        return None
+
+    def start(self, args, mysqld_args):
+        """Starts the mysqld process."""
+
+        subprocess_args = [self.executable] + mysqld_args
+
+        if args.dry_run:
+            print(f"Would have run mysqld like this: {" ".join(subprocess_args)}")
+            return
+        print(f"Running mysqld like this: {" ".join(subprocess_args)}")
+
+        if args.verbose >= 1:
+            daemon = Daemon(
+                self.executable, subprocess_args, stdout=sys.stdout, stderr=sys.stderr
+            )
+        else:
+            devnull = open(os.devnull, "w", encoding=ascii)
+            daemon = Daemon(
+                self.executable, subprocess_args, stdout=devnull, stderr=devnull
+            )
+        daemon.daemonize()
+
+
+class Client(MySQL):
+    """Represents the client binary"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.executable = f"{self.bindir}/mysql"
+
+    def start(self, args, client_args):
+        """Starts the MySQL client."""
+
+        subprocess_args = [self.executable] + client_args
+
+        if args.dry_run:
+            print(f"Would have run mysql like this: {" ".join(subprocess_args)}")
+            return
+        print(f"Running mysql like this: {" ".join(subprocess_args)}")
+
+        os.execv(self.executable, subprocess_args)
 
 
 def determine_build_specifics(args) -> (str, str):
@@ -155,51 +210,3 @@ def get_mysqld_executable_path(version, build_dir):
 
 def get_mysql_executable_path(version, build_dir):
     return f"{get_bin_dir(version, build_dir)}/mysql"
-
-
-def start_mysqld(executable, args, mysqld_args):
-    """Starts the mysqld process."""
-
-    subprocess_args = [executable] + mysqld_args
-
-    if args.dry_run:
-        print(f"Would have run mysqld like this: {" ".join(subprocess_args)}")
-        return
-    print(f"Running mysqld like this: {" ".join(subprocess_args)}")
-
-    if args.verbose >= 1:
-        daemon = Daemon(
-            executable, subprocess_args, stdout=sys.stdout, stderr=sys.stderr
-        )
-    else:
-        devnull = open(os.devnull, "w", encoding=ascii)
-        daemon = Daemon(executable, subprocess_args, stdout=devnull, stderr=devnull)
-    daemon.daemonize()
-
-
-def get_mysqld_pid(mysqld_executable_path):
-    """Returns the pid of the mysqld process"""
-    for proc in psutil.process_iter(["pid", "cmdline"]):
-        try:
-            if (
-                proc.info["cmdline"] is not None
-                and mysqld_executable_path in proc.info["cmdline"]
-            ):
-                return proc.pid
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            pass
-
-    return None
-
-
-def start_client(executable, args, client_args):
-    """Starts the MySQL client."""
-
-    subprocess_args = [executable] + client_args
-
-    if args.dry_run:
-        print(f"Would have run mysql like this: {" ".join(subprocess_args)}")
-        return
-    print(f"Running mysql like this: {" ".join(subprocess_args)}")
-
-    os.execv(executable, subprocess_args)

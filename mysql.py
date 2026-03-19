@@ -1,11 +1,24 @@
 """Starts the MySQL server"""
 
+import logging
+import os
 import subprocess
 import sys
-import os
+
 import psutil
 
 from daemon import Daemon
+
+
+def setup_logging(verbosity):
+    """Configure logging based on verbosity level."""
+    if verbosity >= 2:
+        level = logging.DEBUG
+    elif verbosity >= 1:
+        level = logging.INFO
+    else:
+        level = logging.WARNING
+    logging.basicConfig(level=level, format="%(message)s")
 
 
 # pylint: disable=too-few-public-methods
@@ -28,7 +41,7 @@ class MySQL:
         self.version = version
         self.bindir = bindir
         self.verbose = verbose
-        print(f"mysql init w {bindir} {verbose}")
+        logging.debug("mysql init w %s %s", bindir, verbose)
 
 
 class Server(MySQL):
@@ -47,23 +60,24 @@ class Server(MySQL):
             f"--datadir={self.datadir}",
             "--initialize-insecure",
         ] + mysqld_args
-        if self.verbose >= 1:
-            print(f"Creating database in {self.datadir}")
+        logging.info("Creating database in %s", self.datadir)
         if self.version["MYSQL_VERSION_MAJOR"] <= 5:
             subprocess_args += [
                 f"--lc-messages-dir={self.bindir}/build/debug/sql/share/english",
             ]
 
         if args.dry_run:
-            print(f"Would have run mysqld like this: {" ".join(subprocess_args)}")
+            logging.info(
+                "Would have run mysqld like this: %s", " ".join(subprocess_args)
+            )
             return
 
-        print(f"Running mysqld like this: {" ".join(subprocess_args)}")
+        logging.info("Running mysqld like this: %s", " ".join(subprocess_args))
 
         try:
             subprocess.run(subprocess_args, check=True)
         except subprocess.CalledProcessError as err:
-            print(f"Failed to create database: {err}", file=sys.stderr)
+            logging.critical("Failed to create database: %s", err, file=sys.stderr)
             sys.exit(1)
 
     def get_pid(self):
@@ -86,9 +100,11 @@ class Server(MySQL):
         subprocess_args = [self.executable] + mysqld_args
 
         if args.dry_run:
-            print(f"Would have run mysqld like this: {" ".join(subprocess_args)}")
+            logging.info(
+                "Would have run mysqld like this: %s", " ".join(subprocess_args)
+            )
             return
-        print(f"Running mysqld like this: {" ".join(subprocess_args)}")
+        logging.info("Running mysqld like this: %s", " ".join(subprocess_args))
 
         if args.verbose >= 1:
             daemon = Daemon(
@@ -115,9 +131,12 @@ class Client(MySQL):
         subprocess_args = [self.executable] + client_args
 
         if args.dry_run:
-            print(f"Would have run mysql like this: {" ".join(subprocess_args)}")
+            logging.info(
+                "Would have run mysql like this: %s", " ".join(subprocess_args)
+            )
             return
-        print(f"Running mysql like this: {" ".join(subprocess_args)}")
+
+        logging.info("Running mysql like this: %s", " ".join(subprocess_args))
 
         os.execv(self.executable, subprocess_args)
 
@@ -131,26 +150,27 @@ def determine_build_specifics(args) -> (str, str):
 
     if args.build_dir:
         build_dir = args.build_dir
-        if args.verbose >= 2:
-            print(f"--build-dir specified, setting build directory to {build_dir}")
+        logging.debug("--build-dir specified, setting build directory to %s", build_dir)
         return None, build_dir
 
     if args.build_type:
         build_type = args.build_type
         build_dir = f"{args.workdir}/build/{build_type}"
-        if args.verbose >= 2:
-            print(
-                f"--build-type {build_type} specified, setting build directory to {build_dir}"
-            )
+        logging.debug(
+            "--build-type %s specified, setting build directory to %s",
+            build_type,
+            build_dir,
+        )
         return build_type, build_dir
 
     build_type = Defaults.BUILD_TYPE
     build_dir = f"{args.workdir}/build/{build_type}"
-    if args.verbose >= 2:
-        print(
-            "Neither --build-type nor --build-dir specified, defaulting build type to "
-            f"{build_type} and build directory to {build_dir}"
-        )
+    logging.debug(
+        "Neither --build-type nor --build-dir specified, defaulting build type to "
+        "%s and build directory to %s",
+        build_type,
+        build_dir,
+    )
     return build_type, build_dir
 
 
@@ -162,22 +182,21 @@ def get_socket_path(version, build_type):
     return f"/tmp/mysql-{major_version}.{minor_version}-{build_type}.sock"
 
 
-def read_version(args, workdir):
+def read_version(workdir):
     """Parses the version file to a dict."""
     version = {}
     found_version_file_name = None
 
     for version_file_name in ["MYSQL_VERSION", "VERSION"]:
         if os.path.isfile(f"{workdir}/{version_file_name}"):
-            if args.verbose >= 2:
-                print(f"Found version file {version_file_name}")
+            logging.debug("Found version file %s", version_file_name)
             found_version_file_name = version_file_name
             break
 
     if found_version_file_name is None:
-        print(
-            f"Warning, can't find a version file in {workdir}!",
-            file=sys.stderr,
+        logging.critical(
+            "Warning, can't find a version file in %s!",
+            workdir,
         )
 
     try:
@@ -189,9 +208,10 @@ def read_version(args, workdir):
                 value = data[1].strip()
                 version[data[0]] = int(value) if value.isdigit() else value
     except FileNotFoundError:
-        print(
-            f"Warning, failed to open {found_version_file_name} in {workdir}!",
-            file=sys.stderr,
+        logging.critical(
+            "Warning, failed to open %s in %s!",
+            found_version_file_name,
+            workdir,
         )
         raise
     return version

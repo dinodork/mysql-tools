@@ -1,6 +1,7 @@
 """Starts the MySQL client"""
 
 import argparse
+import logging
 import os
 import sys
 
@@ -49,15 +50,17 @@ def main():
 
     args, unknown_args = parser.parse_known_args()
 
+    mysql.setup_logging(args.verbose)
+
     if args.build_dir:
         build_dir = args.build_dir
     else:
         build_dir = f"{args.workdir}/build/{args.build_type}"
 
     try:
-        version = mysql.read_version(args, args.workdir)
+        version = mysql.read_version(args.workdir)
     except OSError:
-        print("Exiting")
+        logging.info("Exiting")
         sys.exit(1)
 
     build_type, build_dir = mysql.determine_build_specifics(args)

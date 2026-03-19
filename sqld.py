@@ -1,6 +1,7 @@
 """Starts the MySQL server"""
 
 import argparse
+import logging
 import os
 import pathlib
 import signal
@@ -141,6 +142,8 @@ def main():
 
     args, mysqld_args = parser.parse_known_args()
 
+    mysql.setup_logging(args.verbose)
+
     if args.datadir:
         if os.path.isabs(args.datadir):
             datadir = args.datadir
@@ -156,14 +159,13 @@ def main():
 
     build_type, build_dir = mysql.determine_build_specifics(args)
 
-    if args.verbose >= 2:
-        print(f"Build type: {build_type}")
-        print(f"Build dir: {build_dir}")
+    logging.debug("Build type: %s", build_type)
+    logging.debug("Build dir: %s", build_dir)
 
     try:
-        version = mysql.read_version(args, args.workdir)
+        version = mysql.read_version(args.workdir)
     except OSError:
-        print("Exiting")
+        logging.info("Exiting")
         sys.exit(1)
 
     bindir = mysql.get_bin_dir(version, build_dir)
@@ -175,19 +177,17 @@ def main():
     if args.get_pid:
         pid = server.get_pid()
         if pid is None:
-            print("Failed to find running mysqld", file=sys.stderr)
+            logging.critical("Failed to find running mysqld", file=sys.stderr)
             sys.exit(1)
-        print(pid)
         sys.exit(0)
 
     if args.stop:
         pid = server.get_pid()
         if pid is None:
-            print("Failed to find running mysqld")
+            logging.critical("Failed to find running mysqld")
             sys.exit(1)
 
-        if args.verbose >= 2:
-            print(f"Killing mysql with pid {pid}")
+        logging.debug("Killing mysql with pid %s", pid)
 
         os.kill(pid, signal.SIGTERM)
         sys.exit(0)
@@ -225,7 +225,7 @@ def main():
     if args.create:
         server.create_database(args, mysqld_args)
 
-    print(f"start_mysqld({mysqld_executable_path}, {args}, {mysqld_args})")
+    logging.info("start_mysqld(%s, %s, %s)", mysqld_executable_path, args, mysqld_args)
     server.start(args, mysqld_args)
 
 

@@ -75,7 +75,7 @@ def main():
     if args.socket is None:
         args.socket = mysql.get_socket_path(version, args)
 
-    client = mysql.Client(version, mysql.get_bin_dir(version, build_dir), args.verbose)
+    client = mysql.Client(args.workdir, build_type, build_dir, args.verbose)
     client.start(args, mysql_args)
 
 

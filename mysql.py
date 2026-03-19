@@ -37,11 +37,14 @@ class Defaults:
 class MySQL:
     """Base class for all mysql executables (client, server)"""
 
-    def __init__(self, version, bindir, verbose):
-        self.version = version
-        self.bindir = bindir
+    def __init__(self, workdir, build_type, build_dir, verbose):
+        self.workdir = workdir
+        self.build_type = build_type
+        self.build_dir = build_dir
+        self.version = read_version(self.workdir)
+        self.bindir = get_bin_dir(self.version, self.build_dir)
         self.verbose = verbose
-        logging.debug("mysql init w %s %s", bindir, verbose)
+        logging.debug("mysql init w %s %s", self.bindir, verbose)
 
 
 class Server(MySQL):
@@ -91,12 +94,13 @@ class Server(MySQL):
                     return proc.pid
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
-
+        logging.debug("No process found for %s", self.executable)
         return None
 
     def start(self, args, mysqld_args):
         """Starts the mysqld process."""
 
+        logging.debug("starting mysqld(%s, %s, %s)", self.executable, args, mysqld_args)
         subprocess_args = [self.executable] + mysqld_args
 
         if args.dry_run:
@@ -222,11 +226,3 @@ def get_bin_dir(version, build_dir):
     if version["MYSQL_VERSION_MAJOR"] < 8:
         return f"{build_dir}/sql"
     return f"{build_dir}/runtime_output_directory"
-
-
-def get_mysqld_executable_path(version, build_dir):
-    return f"{get_bin_dir(version, build_dir)}/mysqld"
-
-
-def get_mysql_executable_path(version, build_dir):
-    return f"{get_bin_dir(version, build_dir)}/mysql"

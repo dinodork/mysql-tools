@@ -168,11 +168,7 @@ def main():
         logging.info("Exiting")
         sys.exit(1)
 
-    bindir = mysql.get_bin_dir(version, build_dir)
-
-    server = mysql.Server(datadir, version, bindir, args.verbose)
-
-    mysqld_executable_path = mysql.get_mysqld_executable_path(version, build_dir)
+    server = mysql.Server(datadir, args.workdir, build_type, build_dir, args.verbose)
 
     if args.get_pid:
         pid = server.get_pid()
@@ -225,7 +221,6 @@ def main():
     if args.create:
         server.create_database(args, mysqld_args)
 
-    logging.info("start_mysqld(%s, %s, %s)", mysqld_executable_path, args, mysqld_args)
     server.start(args, mysqld_args)
 
 

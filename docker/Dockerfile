@@ -1,7 +1,6 @@
 FROM ubuntu:24.04
 
 ARG username
-ARG keyfile
 
 RUN useradd -m "$username" && chsh -s /bin/bash "$username"
 RUN mkdir "/home/$username/.ssh" -m 700 && chown "$username:$username" "/home/$username/.ssh"
@@ -11,8 +10,7 @@ RUN echo \
 "export PATH=$PATH:/home/$username/gitroot/scripts"\
 ":/home/$username/gitroot/mysql-tools\n"\
 "\n"\
-'. /usr/share/bash-completion/completions/git\n\n'\
-eval '$(keychain --eval --agents ssh -q '"$keyfile"')\n'\
+'. /usr/share/bash-completion/completions/git\n'\
 >> "/home/$username/.bashrc"
 
 RUN yes | unminimize
@@ -25,7 +23,7 @@ RUN apt update && apt -y install build-essential cmake zlib1g-dev ninja-build \
   black git pylint lsof net-tools vim file man locate lsb-release tree gdb \
   nano cmake-curses-gui curl inetutils-ping clang-format-15 clang-tidy \
   clangd libantlr4-runtime-dev libudev-dev unzip colordiff locales \
-  libexpat1-dev ccache valgrind python3.12-venv keychain \
+  libexpat1-dev ccache valgrind python3.12-venv \
   && sed -i 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen en_US.UTF-8 \
   && update-locale LANG=en_US.UTF-8 \

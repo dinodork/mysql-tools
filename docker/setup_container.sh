@@ -35,10 +35,12 @@ copy_files_to_home() {
 docker run -d --name "$container_name" \
        -v "$HOME/gitroot:$home/gitroot" \
        -v "$HOME/boost:$home/boost" \
+       -v /run/host-services/ssh-auth.sock:/ssh-agent \
+       -e SSH_AUTH_SOCK=/ssh-agent \
        --cap-add=SYS_PTRACE "$image_name" tail -f /dev/null
 
-copy_file $HOME/.ssh/id_rsa ${home}/.ssh/id_rsa
-copy_file $HOME/.ssh/id_rsa.pub ${home}/.ssh/id_rsa.pub
+docker exec -uroot "$container_name" chmod 777 /ssh-agent
+
 copy_files_to_home .bash_aliases .gdbinit
 
 # Personally, I keep this file in Git and just symlink it

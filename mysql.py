@@ -5,6 +5,8 @@ import os
 import subprocess
 import sys
 
+from abc import abstractmethod
+
 import psutil
 
 from daemon import Daemon
@@ -34,7 +36,7 @@ class Defaults:
     USER = "root"
 
 
-class MySQL:
+class Binary:
     """Base class for all mysql executables (client, server)"""
 
     def __init__(self, workdir, build_type, build_dir, verbose):
@@ -42,18 +44,28 @@ class MySQL:
         self.build_type = build_type
         self.build_dir = build_dir
         self.version = read_version(self.workdir)
-        self.bindir = get_bin_dir(self.version, self.build_dir)
+        self.bindir = self.get_binary_dir()
         self.verbose = verbose
         logging.debug("mysql init w %s %s", self.bindir, verbose)
 
+    @abstractmethod
+    def get_binary_dir(self):
+        """The concrete binary's directory given version and build directory."""
 
-class Server(MySQL):
+
+class Server(Binary):
     """Represents the server binary"""
 
     def __init__(self, datadir, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.datadir = datadir
         self.executable = f"{self.bindir}/mysqld"
+
+    def get_binary_dir(self):
+        """The binary directory given version and build directory."""
+        if self.version["MYSQL_VERSION_MAJOR"] < 8:
+            return f"{self.build_dir}/sql"
+        return f"{self.build_dir}/runtime_output_directory"
 
     def create_database(self, args: dict, mysqld_args: list):
         """Creates the database."""
@@ -63,10 +75,12 @@ class Server(MySQL):
             f"--datadir={self.datadir}",
             "--initialize-insecure",
         ] + mysqld_args
+
         logging.info("Creating database in %s", self.datadir)
+
         if self.version["MYSQL_VERSION_MAJOR"] <= 5:
             subprocess_args += [
-                f"--lc-messages-dir={self.bindir}/build/debug/sql/share/english",
+                f"--lc-messages-dir={self.bindir}/sql/share/english",
             ]
 
         if args.dry_run:
@@ -80,7 +94,7 @@ class Server(MySQL):
         try:
             subprocess.run(subprocess_args, check=True)
         except subprocess.CalledProcessError as err:
-            logging.critical("Failed to create database: %s", err, file=sys.stderr)
+            logging.critical("Failed to create database: %s", err)
             sys.exit(1)
 
     def get_pid(self):
@@ -122,12 +136,18 @@ class Server(MySQL):
         daemon.daemonize()
 
 
-class Client(MySQL):
+class Client(Binary):
     """Represents the client binary"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.executable = f"{self.bindir}/mysql"
+
+    def get_binary_dir(self):
+        """The binary directory given version and build directory."""
+        if self.version["MYSQL_VERSION_MAJOR"] < 8:
+            return f"{self.build_dir}/client"
+        return f"{self.build_dir}/runtime_output_directory"
 
     def start(self, args, client_args):
         """Starts the MySQL client."""

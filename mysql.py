@@ -52,6 +52,13 @@ class Binary:
     def get_binary_dir(self):
         """The concrete binary's directory given version and build directory."""
 
+    def make_socket_path(self):
+        """Generates a socket file name from the version and build type."""
+        major_version = self.version["MYSQL_VERSION_MAJOR"]
+        minor_version = self.version["MYSQL_VERSION_MINOR"]
+
+        return f"/tmp/mysql-{major_version}.{minor_version}-{self.build_type}.sock"
+
 
 class Server(Binary):
     """Represents the server binary"""
@@ -60,6 +67,13 @@ class Server(Binary):
         super().__init__(*args, **kwargs)
         self.datadir = datadir
         self.executable = f"{self.bindir}/mysqld"
+        self.mysqld_args = (
+            [
+                f"--lc-messages-dir={self.bindir}/share/english",
+            ]
+            if self.version["MYSQL_VERSION_MAJOR"] <= 5
+            else []
+        )
 
     def get_binary_dir(self):
         """The binary directory given version and build directory."""
@@ -70,18 +84,17 @@ class Server(Binary):
     def create_database(self, args: dict, mysqld_args: list):
         """Creates the database."""
 
-        subprocess_args = [
-            self.executable,
-            f"--datadir={self.datadir}",
-            "--initialize-insecure",
-        ] + mysqld_args
+        subprocess_args = (
+            [
+                self.executable,
+                f"--datadir={self.datadir}",
+                "--initialize-insecure",
+            ]
+            + self.mysqld_args
+            + mysqld_args
+        )
 
         logging.info("Creating database in %s", self.datadir)
-
-        if self.version["MYSQL_VERSION_MAJOR"] <= 5:
-            subprocess_args += [
-                f"--lc-messages-dir={self.bindir}/sql/share/english",
-            ]
 
         if args.dry_run:
             logging.info(
@@ -97,25 +110,11 @@ class Server(Binary):
             logging.critical("Failed to create database: %s", err)
             sys.exit(1)
 
-    def get_pid(self):
-        """Returns the pid of the mysqld process"""
-        for proc in psutil.process_iter(["pid", "cmdline"]):
-            try:
-                if (
-                    proc.info["cmdline"] is not None
-                    and self.executable in proc.info["cmdline"]
-                ):
-                    return proc.pid
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
-        logging.debug("No process found for %s", self.executable)
-        return None
-
     def start(self, args, mysqld_args):
         """Starts the mysqld process."""
 
         logging.debug("starting mysqld(%s, %s, %s)", self.executable, args, mysqld_args)
-        subprocess_args = [self.executable] + mysqld_args
+        subprocess_args = [self.executable] + self.mysqld_args + mysqld_args
 
         if args.dry_run:
             logging.info(
@@ -134,6 +133,20 @@ class Server(Binary):
                 self.executable, subprocess_args, stdout=devnull, stderr=devnull
             )
         daemon.daemonize()
+
+    def get_pid(self):
+        """Returns the pid of the mysqld process"""
+        for proc in psutil.process_iter(["pid", "cmdline"]):
+            try:
+                if (
+                    proc.info["cmdline"] is not None
+                    and self.executable in proc.info["cmdline"]
+                ):
+                    return proc.pid
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        logging.debug("No process found for %s", self.executable)
+        return None
 
 
 class Client(Binary):
@@ -198,14 +211,6 @@ def determine_build_specifics(args) -> (str, str):
     return build_type, build_dir
 
 
-def get_socket_path(version, build_type):
-    """Generates a socket file name from the version and build type."""
-    major_version = version["MYSQL_VERSION_MAJOR"]
-    minor_version = version["MYSQL_VERSION_MINOR"]
-
-    return f"/tmp/mysql-{major_version}.{minor_version}-{build_type}.sock"
-
-
 def read_version(workdir):
     """Parses the version file to a dict."""
     version = {}
@@ -239,10 +244,3 @@ def read_version(workdir):
         )
         raise
     return version
-
-
-def get_bin_dir(version, build_dir):
-    """The binary directory given version and build directory."""
-    if version["MYSQL_VERSION_MAJOR"] < 8:
-        return f"{build_dir}/sql"
-    return f"{build_dir}/runtime_output_directory"

@@ -162,12 +162,6 @@ def main():
     logging.debug("Build type: %s", build_type)
     logging.debug("Build dir: %s", build_dir)
 
-    try:
-        version = mysql.read_version(args.workdir)
-    except OSError:
-        logging.info("Exiting")
-        sys.exit(1)
-
     server = mysql.Server(datadir, args.workdir, build_type, build_dir, args.verbose)
 
     if args.get_pid:
@@ -197,15 +191,12 @@ def main():
     if args.no_defaults:
         mysqld_args += ["--no-defaults"]
 
-    socket = args.socket if args.socket else mysql.get_socket_path(version, build_type)
+    socket = args.socket if args.socket else server.make_socket_path()
 
     mysqld_args += [f"--socket={socket}"]
 
     if build_type and build_type.lower() == "debug":
         mysqld_args += ["--gdb"]
-
-    if version["MYSQL_VERSION_MAJOR"] <= 5:
-        mysqld_args += [f"--lc-messages-dir={build_dir}/sql/share/english"]
 
     lockfile = f"{socket}.lock"
     if not args.dry_run and os.path.isfile(lockfile):

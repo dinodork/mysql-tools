@@ -1,9 +1,7 @@
 """Starts the MySQL client"""
 
 import argparse
-import logging
 import os
-import sys
 
 import mysql
 
@@ -57,25 +55,17 @@ def main():
     else:
         build_dir = f"{args.workdir}/build/{args.build_type}"
 
-    try:
-        version = mysql.read_version(args.workdir)
-    except OSError:
-        logging.info("Exiting")
-        sys.exit(1)
-
     build_type, build_dir = mysql.determine_build_specifics(args)
 
     mysql_args = [f"--user={args.user}", f"--database={args.database}"] + unknown_args
 
+    client = mysql.Client(args.workdir, build_type, build_dir, args.verbose)
+
     if args.socket:
         mysql_args += [f"--socket={args.socket}"]
     else:
-        mysql_args += [f"--socket={mysql.get_socket_path(version, build_type)}"]
+        mysql_args += [f"--socket={client.make_socket_path()}"]
 
-    if args.socket is None:
-        args.socket = mysql.get_socket_path(version, args)
-
-    client = mysql.Client(args.workdir, build_type, build_dir, args.verbose)
     client.start(args, mysql_args)
 
 

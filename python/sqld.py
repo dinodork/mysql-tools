@@ -4,7 +4,6 @@ import argparse
 import logging
 import os
 import pathlib
-import signal
 import sys
 
 import mysql
@@ -172,14 +171,7 @@ def main():
         sys.exit(0)
 
     if args.stop:
-        pid = server.get_pid()
-        if pid is None:
-            logging.critical("Failed to find running mysqld")
-            sys.exit(1)
-
-        logging.debug("Killing mysql with pid %s", pid)
-
-        os.kill(pid, signal.SIGTERM)
+        server.stop()
         sys.exit(0)
 
     mysqld_args += [

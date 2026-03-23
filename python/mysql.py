@@ -2,6 +2,7 @@
 
 import logging
 import os
+import signal
 import subprocess
 import sys
 
@@ -147,6 +148,21 @@ class Server(Binary):
                 pass
         logging.debug("No process found for %s", self.executable)
         return None
+
+    def stop(self):
+        pid = self.get_pid()
+        if pid is None:
+            logging.critical("Failed to find running mysqld")
+            return
+
+        logging.debug("Killing mysql with pid %s", pid)
+
+        os.kill(pid, signal.SIGTERM)
+        try:
+            psutil.Process(pid).wait()
+        except psutil.NoSuchProcess:
+            logging.critical("Failed to find running mysqld")
+            pass
 
 
 class Client(Binary):

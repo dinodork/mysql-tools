@@ -29,7 +29,7 @@ def main():
     mysql_args.add_argument("-D", "--database", default=mysql.Defaults.DATABASE)
 
     parser.add_argument("-B", "--build-dir")
-    parser.add_argument("-b", "--build-type", default=mysql.Defaults.BUILD_TYPE)
+    parser.add_argument("-b", "--build-type")
 
     parser.add_argument(
         "--dry-run",
@@ -50,16 +50,13 @@ def main():
 
     mysql.setup_logging(args.verbose)
 
-    if args.build_dir:
-        build_dir = args.build_dir
-    else:
-        build_dir = f"{args.workdir}/build/{args.build_type}"
-
-    build_type, build_dir = mysql.determine_build_specifics(args)
+    build = mysql.Build(args.workdir, args.build_dir, args.build_type)
+    build_type = build.get_build_type()
+    build_dir = build.build_dir
 
     mysql_args = [f"--user={args.user}", f"--database={args.database}"] + unknown_args
 
-    client = mysql.Client(args.workdir, build_type, build_dir, args.verbose)
+    client = mysql.Client(build)
 
     if args.socket:
         mysql_args += [f"--socket={args.socket}"]

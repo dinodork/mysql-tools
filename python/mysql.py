@@ -37,17 +37,58 @@ class Defaults:
     USER = "root"
 
 
+class Build:
+    """Represents the specifics of how a binary was built"""
+
+    def __init__(
+        self, workdir, build_dir=None, build_type=None, build_home=Defaults.BUILD_HOME
+    ):
+        self.workdir = workdir
+        self._build_type = build_type
+
+        logging.debug("workdir %s", self.workdir)
+
+        if build_dir:
+            self.build_dir = os.path.abspath(build_dir)
+            logging.debug(
+                "--build-dir specified, setting build directory to %s", self.build_dir
+            )
+            return
+
+        if self._build_type:
+            self.build_dir = f"{workdir}/{build_home}/{self._build_type}"
+            logging.debug(
+                "--build-type %s specified, setting build directory to %s",
+                self._build_type,
+                self.build_dir,
+            )
+            return
+
+        self._build_type = Defaults.BUILD_TYPE
+        self.build_dir = f"{workdir}/{build_home}/{self._build_type}"
+        logging.debug(
+            "Defaulting build type to %s and build directory to %s",
+            self._build_type,
+            self.build_dir,
+        )
+
+    def get_build_type(self):
+        """Determines the build type"""
+        if not self._build_type:
+            self._build_type = search_cmake_cache(
+                self.build_dir, "CMAKE_BUILD_TYPE:STRING"
+            )
+            logging.debug("inferring build type to %s", self._build_type)
+
+        return self._build_type
+
+
 class Binary:
     """Base class for all mysql executables (client, server)"""
 
-    def __init__(self, workdir, build_type, build_dir, verbose):
-        self.workdir = workdir
-        self.build_type = build_type
-        self.build_dir = build_dir
-        self.version = read_version(self.workdir)
-        self.bindir = self.get_binary_dir()
-        self.verbose = verbose
-        logging.debug("mysql init w %s %s", self.bindir, verbose)
+    def __init__(self, build):
+        self.build = build
+        self.version = read_version(build.build_dir)
 
     @abstractmethod
     def get_binary_dir(self):
@@ -58,7 +99,7 @@ class Binary:
         major_version = self.version["MYSQL_VERSION_MAJOR"]
         minor_version = self.version["MYSQL_VERSION_MINOR"]
 
-        return f"/tmp/mysql-{major_version}.{minor_version}-{self.build_type}.sock"
+        return f"/tmp/mysql-{major_version}.{minor_version}-{self.build.get_build_type()}.sock"
 
 
 class Server(Binary):
@@ -67,18 +108,20 @@ class Server(Binary):
     def __init__(self, datadir, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.datadir = datadir
-        self.executable = f"{self.bindir}/mysqld"
+        self.executable = f"{self.get_binary_dir()}/mysqld"
         self.mysqld_args = [
             f"--datadir={datadir}",
         ]
         if self.version["MYSQL_VERSION_MAJOR"] <= 5:
-            self.mysqld_args += f"--lc-messages-dir={self.bindir}/share/english"
+            self.mysqld_args.append(
+                f"--lc-messages-dir={self.build.build_dir}/share/english"
+            )
 
     def get_binary_dir(self):
         """The binary directory given version and build directory."""
         if self.version["MYSQL_VERSION_MAJOR"] < 8:
-            return f"{self.build_dir}/sql"
-        return f"{self.build_dir}/runtime_output_directory"
+            return f"{self.build.build_dir}/sql"
+        return f"{self.build.build_dir}/runtime_output_directory"
 
     def create_database(self, args: dict, mysqld_args: list):
         """Creates the database."""
@@ -148,6 +191,7 @@ class Server(Binary):
         return None
 
     def stop(self):
+        """Signals the server and waits until the process has stopped"""
         pid = self.get_pid()
         if pid is None:
             logging.critical("Failed to find running mysqld")
@@ -160,7 +204,6 @@ class Server(Binary):
             psutil.Process(pid).wait()
         except psutil.NoSuchProcess:
             logging.critical("Failed to find running mysqld")
-            pass
 
 
 class Client(Binary):
@@ -168,13 +211,13 @@ class Client(Binary):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.executable = f"{self.bindir}/mysql"
+        self.executable = f"{self.get_binary_dir()}/mysql"
 
     def get_binary_dir(self):
-        """The binary directory given version and build directory."""
+        """The executable directory given version and build directory."""
         if self.version["MYSQL_VERSION_MAJOR"] < 8:
-            return f"{self.build_dir}/client"
-        return f"{self.build_dir}/runtime_output_directory"
+            return f"{self.build.build_dir}/client"
+        return f"{self.build.build_dir}/runtime_output_directory"
 
     def start(self, args, client_args):
         """Starts the MySQL client."""
@@ -225,7 +268,27 @@ def determine_build_specifics(args) -> (str, str):
     return build_type, build_dir
 
 
-def read_version(workdir):
+def search_cmake_cache(build_dir, variable):
+    """Searches the cmake cache"""
+    search_str = f"{variable}="
+    with open(f"{build_dir}/CMakeCache.txt", "r", encoding="ascii") as cmake_cache:
+        for line in cmake_cache:
+            if line[: len(search_str)] == search_str:
+                return line[len(search_str) :].strip().lower()
+    return None
+
+
+def read_version(build_dir):
+    """Picks up the MySQL version from the build"""
+    version_string = search_cmake_cache(build_dir, "MYSQL_BASE_VERSION:INTERNAL")
+    version_list = version_string.split(".")
+    return {
+        "MYSQL_VERSION_MAJOR": int(version_list[0]),
+        "MYSQL_VERSION_MINOR": int(version_list[1]),
+    }
+
+
+def read_version_file(workdir):
     """Parses the version file to a dict."""
     version = {}
     found_version_file_name = None

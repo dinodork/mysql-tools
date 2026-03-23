@@ -156,12 +156,11 @@ def main():
 
     os.makedirs(datadir, exist_ok=True)
 
-    build_type, build_dir = mysql.determine_build_specifics(args)
+    build = mysql.Build(args.workdir, args.build_dir, args.build_type)
+    build_type = build.get_build_type()
+    build_dir = build.build_dir
 
-    logging.debug("Build type: %s", build_type)
-    logging.debug("Build dir: %s", build_dir)
-
-    server = mysql.Server(datadir, args.workdir, build_type, build_dir, args.verbose)
+    server = mysql.Server(datadir, build)
 
     if args.get_pid:
         pid = server.get_pid()

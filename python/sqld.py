@@ -168,6 +168,7 @@ def main():
         if pid is None:
             logging.critical("Failed to find running mysqld", file=sys.stderr)
             sys.exit(1)
+        print(pid)
         sys.exit(0)
 
     if args.stop:

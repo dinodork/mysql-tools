@@ -68,13 +68,11 @@ class Server(Binary):
         super().__init__(*args, **kwargs)
         self.datadir = datadir
         self.executable = f"{self.bindir}/mysqld"
-        self.mysqld_args = (
-            [
-                f"--lc-messages-dir={self.bindir}/share/english",
-            ]
-            if self.version["MYSQL_VERSION_MAJOR"] <= 5
-            else []
-        )
+        self.mysqld_args = [
+            f"--datadir={datadir}",
+        ]
+        if self.version["MYSQL_VERSION_MAJOR"] <= 5:
+            self.mysqld_args += f"--lc-messages-dir={self.bindir}/share/english"
 
     def get_binary_dir(self):
         """The binary directory given version and build directory."""

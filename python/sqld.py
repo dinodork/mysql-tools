@@ -176,7 +176,6 @@ def main():
         sys.exit(0)
 
     mysqld_args += [
-        f"--datadir={datadir}",
         f"--lower_case_table_names={args.lower_case_table_names}",
         f"--port={args.port}",
     ]

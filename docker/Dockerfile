@@ -1,3 +1,4 @@
+# check=skip=SecretsUsedInArgOrEnv
 FROM ubuntu:24.04
 
 ARG username
@@ -32,6 +33,7 @@ RUN apt update && apt -y install build-essential cmake zlib1g-dev ninja-build \
 ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US:en
 ENV LC_ALL=en_US.UTF-8
+ENV SSH_AUTH_SOCK=/ssh-agent
 
 RUN PERL_MM_USE_DEFAULT=1 cpan install JSON.pm XML::Parser
 

@@ -20,6 +20,7 @@ cmd="cmake -B ${build_dir} -GNinja -DCMAKE_BUILD_TYPE=$build_type \
      -DDOWNLOAD_BOOST=1 -DWITH_BOOST=~/boost \
      -DWITH_AUTHENTICATION_LDAP=OFF -DWITH_PERCONA_AUTHENTICATION_LDAP=OFF \
      -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DFORCE_COLORED_OUTPUT=ON \
+     -DWITH_LD=mold \
      $clang_opt \
      $asan_opt"
 

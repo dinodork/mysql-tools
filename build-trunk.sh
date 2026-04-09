@@ -1,7 +1,11 @@
 clang=0
+build_home="build"
 
 build_type=${1:-Debug}
-build_dir=${2:-build/${build_type,,}}
+build_dir=${2:-${build_home}/${build_type,,}}
+
+echo "build type ${build_type}"
+echo "build dir ${build_dir}"
 
 if [ "$clang" == "1" ]; then
    clang_opt="-DCMAKE_C_COMPILER=clang-18 -DCMAKE_CXX_COMPILER=clang++-18"

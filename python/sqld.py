@@ -67,6 +67,11 @@ def make_parser():
         "arbitrary build directory using --build-dir",
     )
 
+    build_specific_args.add_argument(
+        "--bin-dir",
+        help="assumes binary distribution ",
+    )
+
     parser.add_argument(
         "--dry-run",
         action="store_true",

@@ -53,12 +53,14 @@ def make_parser():
     mysqld_args.add_argument("--socket", type=str)
 
     build_specific_args = parser.add_mutually_exclusive_group()
+
     build_specific_args.add_argument(
         "-B",
         "--build-dir",
         help="lets you specify the build directory directly, instead of inferring it from the "
         "build type (see --build-type)",
     )
+
     build_specific_args.add_argument(
         "-b",
         "--build-type",
@@ -66,6 +68,7 @@ def make_parser():
         "`build/<build type>` in the current directory. You can specify an "
         "arbitrary build directory using --build-dir",
     )
+
 
     parser.add_argument(
         "--dry-run",

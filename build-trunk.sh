@@ -1,5 +1,6 @@
-clang=0
-build_home="build"
+asan=0
+clang=1
+build_home="build.dir"
 
 build_type=${1:-Debug}
 build_dir=${2:-${build_home}/${build_type,,}}
@@ -26,4 +27,9 @@ cmd="cmake -B ${build_dir} -GNinja -DCMAKE_BUILD_TYPE=$build_type \
 
 echo $cmd
 
-${cmd} && time ninja -C "$build_dir"
+cat > .clangd <<EOF
+CompileFlags:
+  CompilationDatabase: ${build_dir}
+EOF
+
+${cmd} #&& time ninja -C "$build_dir"
